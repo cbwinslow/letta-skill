@@ -1,6 +1,6 @@
 # Letta Skill
 
-Complete Letta infrastructure management skill for AI agents. This skill provides comprehensive capabilities for managing self-hosted Letta servers including agent lifecycle, memory blocks, identities, folders/files (MemFS), health checks, model selection, secrets management, and custom tool building.
+Complete Letta infrastructure management skill for AI agents. Provides comprehensive capabilities for managing self-hosted Letta servers including agent lifecycle, memory blocks, identities, folders/files (MemFS), health checks, model selection, secrets management, and custom tool building.
 
 ## Features
 
@@ -88,24 +88,23 @@ docker run -d \
 version: '3.8'
 services:
   postgres:
-    image: postgres:15
+    image: pgvector/pgvector:pg16
     environment:
       POSTGRES_USER: letta
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: letta
     volumes:
       - pgdata:/var/lib/postgresql/data
-
   letta:
-    image: letta/letta:latest
+    image: lettaai/letta:latest
     ports:
       - "8283:8283"
     environment:
-      LETTA_POSTGRES_URI: postgresql://${POSTGRES_USER:-letta}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-letta}
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      LETTA_PG_URI: postgresql://${POSTGRES_USER:-letta}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-letta}
+      OPENAI_API_BASE: ${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
+      OPENAI_API_KEY: ${OPENROUTER_API_KEY}
     depends_on:
       - postgres
-
 volumes:
   pgdata:
 ```
@@ -149,4 +148,4 @@ See [SECURITY.md](SECURITY.md) for detailed security guidelines.
 
 ## License
 
-This skill is provided as-is for use with Letta infrastructure management.
+This skill is provided under the Apache-2.0 license for use with Letta infrastructure management.
