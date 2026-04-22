@@ -1,0 +1,23 @@
+# skr configuration for letta-skill
+# https://github.com/andrewhowdencom/skr
+
+namespace: cbwinslow/letta-skill
+path: .
+registry: ghcr.io
+
+skills:
+  - name: letta
+    path: .
+    description: Complete Letta infrastructure management
+    tags:
+      - letta
+      - agent
+      - memory
+      - infrastructure
+    compatibility:
+      - claude-code
+      - codex
+      - opencode
+      - cursor
+      - gh-copilot
+      - windsurf

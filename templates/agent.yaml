@@ -1,0 +1,29 @@
+# Letta Agent Template
+# Use this as a starting point for creating new Letta agents
+
+name: my-agent
+description: A helpful AI assistant
+model: OpenRouter/z-ai/glm-4.5-air:free
+
+# Memory blocks (minimum: persona and human)
+memory_blocks:
+  - label: persona
+    value: You are a helpful AI assistant.
+    limit: 2000
+  - label: human
+    value: User context and preferences go here.
+    limit: 2000
+  - label: project
+    value: Current project context.
+    limit: 4000
+
+# Tools (optional)
+tools:
+  - memory_edit
+  - conversation_search
+
+# LLM configuration (optional)
+llm_config:
+  temperature: 0.7
+  max_tokens: 2000
+  top_p: 0.9

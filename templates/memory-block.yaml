@@ -1,0 +1,20 @@
+# Memory Block Template
+# Starter template for creating memory blocks
+
+label: my-block
+value: |
+  Content for the memory block goes here.
+  This can be multiple lines.
+
+limit: 4000
+
+# For archival memory (long-term, searchable)
+archival:
+  content: |
+    Content to add to archival memory.
+    This persists indefinitely.
+  metadata:
+    source: manual
+    tags:
+      - template
+      - starter

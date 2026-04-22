@@ -2,6 +2,44 @@
 
 Complete Letta infrastructure management skill for AI agents. Provides comprehensive capabilities for managing self-hosted Letta servers including agent lifecycle, memory blocks, identities, folders/files (MemFS), health checks, model selection, secrets management, and custom tool building.
 
+## Install
+
+### Using Git Clone (Recommended for All Agents)
+
+```bash
+# Clone the repository
+git clone https://github.com/cbwinslow/letta-skill.git ~/skills/letta
+
+# Or add as a submodule in your dotfiles
+git submodule add https://github.com/cbwinslow/letta-skill.git path/to/skills/letta
+```
+
+### Using `skr` CLI
+
+```bash
+# Install from OCI registry
+skr install ghcr.io/cbwinslow/letta-skill:latest
+
+# Or from git
+skr install git+https://github.com/cbwinslow/letta-skill
+```
+
+### Using `gh` CLI
+
+```bash
+# Install for Claude Code
+gh skill install cbwinslow/letta-skill letta --agent claude-code --scope user
+
+# Install for Codex
+gh skill install cbwinslow/letta-skill letta --agent codex --scope user
+```
+
+### Manual Installation
+
+1. Download or clone this repository
+2. Copy the `letta-skill/` directory to your agent's skills folder
+3. Copy `.env.example` to `.env` and configure
+
 ## Features
 
 - **Agent Manager**: Create, list, update, retrieve, and delete Letta agents
@@ -112,15 +150,16 @@ volumes:
 ## Documentation
 
 - **SKILL.md**: Main skill file with quick start and module overview
-- **reference/agents.md**: Agent management detailed API
-- **reference/memory.md**: Memory blocks and archival memory
-- **reference/identities.md**: Identity management
-- **reference/folders.md**: Folder/file and MemFS operations
-- **reference/healthcheck.md**: Health checks and troubleshooting
-- **reference/openrouter.md**: Model selection and configuration
-- **reference/secrets.md**: Secret management best practices
-- **reference/tools.md**: Custom tool creation and management
-- **reference/scripts-guide.md**: Helper scripts documentation
+- **references/agents.md**: Agent management detailed API
+- **references/memory.md**: Memory blocks and archival memory
+- **references/identities.md**: Identity management
+- **references/folders.md**: Folder/file and MemFS operations
+- **references/healthcheck.md**: Health checks and troubleshooting
+- **references/openrouter.md**: Model selection and configuration
+- **references/secrets.md**: Secret management best practices
+- **references/tools.md**: Custom tool creation and management
+- **references/scripts-guide.md**: Helper scripts documentation
+- **templates/**: Starter templates for agents and memory blocks
 
 ## Security
 

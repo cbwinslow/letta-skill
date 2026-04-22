@@ -28,9 +28,33 @@ All AI agents using this skill **MUST**:
 ---
 name: letta
 description: Complete Letta infrastructure management including agent lifecycle, memory blocks, identities, folders/files (MemFS), health checks, model selection, secrets management, and custom tool building. Use this skill for any Letta server operation.
+license: Apache-2.0
+compatibility: Requires Letta server at http://localhost:8283, bash with curl/jq
+metadata:
+  version: "1.0.0"
+  author: "cbwinslow"
+  tags: ["letta", "agent", "memory", "infrastructure", "postgresql"]
 ---
 
 # Letta Infrastructure Management
+
+## Directory Structure
+
+```
+letta-skill/
+├── SKILL.md              # This file
+├── scripts/             # Bash helper functions
+├── references/          # API documentation
+├── templates/          # Starter templates
+│   ├── agent.yaml
+│   ├── memory-block.yaml
+│   └── create-agent.sh
+├── assets/             # Branding and manifests
+│   ├── logo.svg
+│   ├── banner.svg
+│   └── manifest.json
+└── LICENSE
+```
 
 Complete skill for managing self-hosted Letta server with PostgreSQL backend and configurable LLM providers (OpenRouter, OpenAI, Anthropic, Ollama, etc.).
 

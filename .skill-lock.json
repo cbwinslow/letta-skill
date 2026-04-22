@@ -1,0 +1,13 @@
+{
+  "$schema": "https://raw.githubusercontent.com/andrewhowdencom/skr/main/schema.json",
+  "version": "1.0.0",
+  "skills": [
+    {
+      "name": "letta",
+      "path": ".",
+      "installedRef": null,
+      "digest": null,
+      "installedAt": null
+    }
+  ]
+}

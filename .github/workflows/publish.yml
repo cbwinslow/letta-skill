@@ -1,0 +1,129 @@
+name: Publish letta-skill
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  validate:
+    name: Validate Skill
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate SKILL.md
+        run: |
+          if [ ! -f "SKILL.md" ]; then
+            echo "Error: SKILL.md not found"
+            exit 1
+          fi
+          
+          if ! grep -q "^name: letta$" SKILL.md; then
+            echo "Error: SKILL.md missing 'name' field"
+            exit 1
+          fi
+          
+          if ! grep -q "^description:" SKILL.md; then
+            echo "Error: SKILL.md missing 'description' field"
+            exit 1
+          fi
+          
+          echo "✓ SKILL.md is valid"
+
+      - name: Validate directory structure
+        run: |
+          for dir in scripts references templates assets; do
+            if [ ! -d "$dir" ]; then
+              echo "Error: $dir/ directory not found"
+              exit 1
+            fi
+          done
+          echo "✓ Directory structure is valid"
+
+      - name: Check for secrets
+        run: |
+          if grep -rqE "(sk-let-|sk-or-|123qweasd)" . --include="*.sh" --include="*.md" --include="*.yaml" 2>/dev/null; then
+            echo "Error: Possible secrets found in files"
+            exit 1
+          fi
+          echo "✓ No secrets found"
+
+      - name: Run tests
+        run: |
+          chmod +x scripts/test.sh
+          ./scripts/test.sh
+
+  publish:
+    name: Publish to OCI Registry
+    needs: validate
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version
+        id: version
+        run: |
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/v}
+          else
+            VERSION=0.0.0-${{ github.sha }}
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=ghcr.io/${{ github.repository_owner }}/letta-skill:$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/letta-skill
+          tags: |
+            type=semver,pattern={{version}}
+            type=sha
+            type=raw,value=latest
+
+      - name: Build and push skill artifact
+        uses: andrewhowdencom/skr@main
+        with:
+          command: push
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          namespace: ${{ github.repository_owner }}/letta-skill
+          path: .
+
+  gh-skill-publish:
+    name: Publish to GitHub CLI
+    needs: validate
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Publish with gh CLI
+        run: |
+          gh extension install cli/gh-skill || true
+          gh skill publish --dry-run
+          gh skill publish --tag ${{ github.ref_name }}

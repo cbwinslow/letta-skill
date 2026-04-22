@@ -1,0 +1,17 @@
+# skills-oci configuration
+# https://github.com/salaboy/skills-oci
+
+skill:
+  name: letta
+  version: 1.0.0
+  description: Complete Letta infrastructure management
+  registry: ghcr.io/cbwinslow/letta-skill
+
+manifest:
+  agents:
+    - claude-code
+    - codex
+    - opencode
+    - cursor
+    - gh-copilot
+    - windsurf

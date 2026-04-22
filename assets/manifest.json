@@ -1,0 +1,15 @@
+{
+  "name": "letta",
+  "version": "1.0.0",
+  "description": "Letta agent infrastructure management skill",
+  "icon": "logo.svg",
+  "banner": "banner.svg",
+  "license": "Apache-2.0",
+  "tags": ["letta", "agent", "memory", "infrastructure", "ai"],
+  "compatibility": {
+    "claude": ">=1.0",
+    "codex": ">=1.0",
+    "opencode": ">=1.0",
+    "gh-copilot": ">=1.0"
+  }
+}
