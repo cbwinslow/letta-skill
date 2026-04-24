@@ -224,3 +224,41 @@ curl -s -X PATCH "http://localhost:8283/v1/agents/$AGENT_ID/core-memory/blocks/a
 - `references/agents.md` — Agent creation and management
 - `templates/block-templates.yaml` — Pre-built block templates
 - `templates/agent-templates.yaml` — Pre-built agent configs
+
+---
+
+## Custom Tool Creation
+
+### Creating a Tool
+
+```bash
+curl -s -X POST http://localhost:8283/v1/tools/ \
+  -H "Authorization: Bearer $LETTA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "description": "Run a read-only SQL query on the retrosheet database.",
+    "source_code": "def pg_query(query: str) -> str:\n    \"\"\"\n    Run a read-only SQL query.\n    \n    Args:\n        query: SQL query string\n    \n    Returns:\n        str: Query results\n    \"\"\"\n    return query",
+    "source_type": "python"
+  }' | jq -r '.id, .name'
+```
+
+**Requirements:**
+- Must have Google-style docstring
+- `source_type`: "python" or "javascript"
+- Add `pip_requirements` for packages (e.g., `["psycopg2-binary"]`)
+
+### Tools in Database
+
+| Tool Name | Purpose | Agent |
+|-----------|---------|-------|
+| pg_query | Run SELECT queries on retrosheet DB | retrosheet-warehouse |
+
+### Adding Tools to Agents
+
+Use the Letta Python SDK to attach custom tools:
+```python
+from letta_client import Letta
+client = Letta()
+agent = client.agents.get(AGENT_ID)
+agent.attach_tool("pg_query")
+```
