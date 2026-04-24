@@ -147,6 +147,67 @@ curl -s -L -X DELETE \
 | scratchpad  | Working notes the agent may revise frequently | 8000   | No      |
 | policies    | Read-only compliance, guardrails, or organization rules | 2000   | Yes     |
 
+---
+
+## CRITICAL: The Description Field
+
+> "The `description` field is crucial - it's how the agent determines how to read and write to the block. Without a good description, the agent may not understand how to use the block." — Letta Docs
+
+**Every memory block MUST include a description:**
+
+```bash
+curl -s -X POST http://localhost:8283/v1/blocks/ \
+  -H "Authorization: Bearer $LETTA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "label": "data_sources",
+    "value": "Retrosheet: 62K games...",
+    "description": "Retrosheet data sources and their current status. Updated as new data is ingested.",
+    "limit": 4000
+  }' | jq '{id, label, description}'
+```
+
+**Good description examples:**
+- "User preferences for tone, formatting, and communication style"
+- "Current project context and working goals"
+- "Data sources and how to access them"
+- "Skills and tools available to use"
+
+---
+
+## Tagging Archival Passages
+
+**Always tag archival passages with:**
+
+- **project**: identifier (project:retrosheet, project:letta)
+- **type**: category (type:overview, type:fixes, type:docs)
+- **agent**: owner (agent:blaine-assistant)
+- **folder**: reference (folder:homelab)
+- **date**: when relevant (date:2026-04-24)
+
+```bash
+curl -s -X POST http://localhost:8283/v1/agents/AGENT_ID/archival-memory \
+  -H "Authorization: Bearer $LETTA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Letta organization completed. Fixed all blocks...",
+    "tags": ["project:letta", "type:organization", "agent:opencode", "folder:homelab", "date:2026-04-24"]
+  }'
+```
+
+---
+
+## Memory Block Size Management
+
+When approaching character limits:
+
+1. **Split by topic:** `customer_profile` → `customer_business`, `customer_preferences`
+2. **Split by time:** `interaction_history` → `recent_interactions`, archive older
+3. **Archive historical data:** Move old information to archival memory
+4. **Consolidate with memory_rethink:** Summarize and rewrite block
+
+---
+
 ## Rules
 - Attach/detach calls return null — do not treat null as an error
 - Core memory blocks are always in context — keep them concise and factual

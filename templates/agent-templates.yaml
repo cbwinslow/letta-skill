@@ -1,0 +1,138 @@
+# Agent Templates for Letta
+# Pre-built agent configurations for common use cases
+# Use with templates/block-templates.yaml
+
+---
+# DATA AGENT TEMPLATE
+data_agent:
+  name: "data-agent"
+  description: "AI assistant for data analysis tasks"
+  model: "OpenRouter/z-ai/glm-4.5-air:free"
+  blocks:
+    - label: "persona"
+      value: "You are a data analysis agent. Systematic, factual, data-driven. Builds feature marts and prediction models."
+      description: "Agent persona: role, communication style, and behavioral guidelines."
+      limit: 2000
+    - label: "human"
+      value: "User: cbwinslow. Machine: cbwdellr720 (Dell R720, Ubuntu 24.04). Goal: Build baseball prediction warehouse from Retrosheet data."
+      description: "User information: name, machine, project goals."
+      limit: 2000
+    - label: "project"
+      value: "Retrosheet Baseball Prediction Warehouse. Mission: Build reproducible baseball prediction warehouse from free/open data sources."
+      description: "Retrosheet project overview and mission. Contains database architecture, data layers, tools, and key scripts."
+      limit: 4000
+    - label: "data_sources"
+      value: "Retrosheet: 62,598 games (2000-2025), 4.9M events. MLB PBP: 19.7M pitches. Bridge: 56,533 games."
+      description: "Retrosheet data sources and their current status. Updated as new data is ingested."
+      limit: 4000
+    - label: "skills"
+      value: "Technical skills: Python (async, pydantic, langchain), PostgreSQL, Docker, Chadwick CLI, pybaseball."
+      description: "Technical skills available for retrosheet project. Languages, tools, databases, and automation frameworks."
+      limit: 2000
+
+---
+# HOMELAB AGENT TEMPLATE
+homelab_agent:
+  name: "homelab-agent"
+  description: "AI assistant for cbwdellr720 homelab infrastructure management"
+  model: "OpenRouter/z-ai/glm-4.5-air:free"
+  blocks:
+    - label: "persona"
+      value: "Homelab infrastructure assistant. Helpful, systematic, troubleshooting-focused. Helps manage cbwdellr720 and related systems."
+      description: "Agent persona: role, communication style, and behavioral guidelines for homelab assistance."
+      limit: 2000
+    - label: "human"
+      value: "User: Blaine from Wisconsin. Windows machine cbwwin. Software development and home lab management."
+      description: "User information: name, machine, preferences, and communication style."
+      limit: 2000
+    - label: "homelab"
+      value: "cbwdellr720 homelab infrastructure. Network: 192.168.1.0/24. DNS: Cloudflare 1.1.1.1, Google 8.8.8.8. Services: Docker, Letta, PostgreSQL, Ollama (3 GPUs)."
+      description: "cbwdellr720 homelab infrastructure: servers, networking, DNS, services, monitoring stack. Contains IP addresses, hostnames, port configurations, and active containers."
+      limit: 4000
+    - label: "knowledge"
+      value: "Letta server: localhost:8283. Docs: ~/infra/letta/PROCEDURES.md. DB: PostgreSQL localhost:5432/letta."
+      description: "Reference knowledgebase for systems, tools, and configurations. Contains factual information, URLs, credentials locations, and architectural decisions."
+      limit: 8000
+    - label: "runbook"
+      value: "Network troubleshooting 2026-04-23: 1) Removed Tailscale (UDP blocked), 2) Removed LXD (DNS pollution), 3) DNS: Cloudflare + Google, 4) Ring buffer: 200->512. VPN alternatives: NetBird, ZeroTier."
+      description: "Operational procedures and troubleshooting guides for homelab systems. Command references, error diagnostics, and step-by-step recovery procedures."
+      limit: 4000
+
+---
+# RESEARCH AGENT TEMPLATE
+research_agent:
+  name: "research-agent"
+  description: "AI assistant for research and documentation tasks"
+  model: "OpenRouter/z-ai/glm-4.5-air:free"
+  blocks:
+    - label: "persona"
+      value: "Research assistant. Thorough, accurate, citation-focused. Helps find and synthesize information."
+      description: "Agent persona: role, communication style, and behavioral guidelines."
+      limit: 2000
+    - label: "human"
+      value: "User context and preferences."
+      description: "User information: name, preferences, and communication context."
+      limit: 2000
+    - label: "project"
+      value: "Current research project context."
+      description: "Current project context, goals, and working information."
+      limit: 4000
+    - label: "notes"
+      value: "Research notes and findings."
+      description: "Notes from research activities. Updated as new information is found."
+      limit: 4000
+    - label: "sources"
+      value: "Sources and references."
+      description: "Research sources, URLs, and references."
+      limit: 4000
+
+---
+# SUPPORT AGENT TEMPLATE
+support_agent:
+  name: "support-agent"
+  description: "AI assistant for customer support tasks"
+  model: "OpenRouter/z-ai/glm-4.5-air:free"
+  blocks:
+    - label: "persona"
+      value: "Customer support assistant. Empathetic, patient, solutions-oriented. Helps resolve user issues."
+      description: "Agent persona: role, communication style, and behavioral guidelines for support."
+      limit: 2000
+    - label: "human"
+      value: "User context and issue tracking."
+      description: "User information and current issue context."
+      limit: 2000
+    - label: "policies"
+      value: "Support policies: response time, escalation path, refund policy, privacy guidelines."
+      description: "Read-only support policies and guidelines. Agent cannot modify this block."
+      limit: 2000
+    - label: "knowledge"
+      value: "Common issues and solutions."
+      description: "Knowledge base for common support issues and resolutions."
+      limit: 8000
+    - label: "scratchpad"
+      value: "Current ticket state and notes."
+      description: "Working notes for current support ticket. Current issue, status, and next steps."
+      limit: 8000
+
+---
+# MINIMAL AGENT (just persona + human)
+minimal_agent:
+  name: "minimal-agent"
+  description: "Basic AI assistant with essential blocks"
+  model: "OpenRouter/z-ai/glm-4.5-air:free"
+  blocks:
+    - label: "persona"
+      value: "You are a helpful AI assistant."
+      description: "Agent persona: role, communication style, and behavioral guidelines."
+      limit: 2000
+    - label: "human"
+      value: "User context."
+      description: "User information: name, preferences, and context."
+      limit: 2000
+
+---
+# EXAMPLE USAGE
+
+# Create a data agent:
+# $ CAT/templates/agent-templates.yaml | yq '.data_agent'
+# Then use the values to create blocks and agent

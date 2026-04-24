@@ -122,3 +122,62 @@ curl -s -L -X DELETE http://localhost:8283/v1/agents/AGENT_ID \
 - When listing agents for selection, print id + name clearly
 - Default model is OpenRouter/z-ai/glm-4.5-air:free unless user specifies otherwise
 - Include at least persona and human blocks on every new agent
+- ALWAYS use description field on memory blocks (see best-practices.md)
+
+---
+
+## RECOMMENDED: Create Agent with Separate Blocks
+
+**Best Practice:** Create blocks first, then create agent, then attach (per best-practices.md)
+
+```bash
+# 1. Create persona block first
+PERSONA_ID=$(curl -s -X POST http://localhost:8283/v1/blocks/ \
+  -H "Authorization: Bearer $LETTA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "label": "persona",
+    "value": "You are a helpful AI assistant specialized in data analysis.",
+    "description": "Agent persona: role, communication style, and behavioral guidelines.",
+    "limit": 2000
+  }' | jq -r '.id')
+
+# 2. Create human block
+HUMAN_ID=$(curl -s -X POST http://localhost:8283/v1/blocks/ \
+  -H "Authorization: Bearer $LETTA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "label": "human",
+    "value": "User: data analyst. Machine: cbwdellr720.",
+    "description": "User information: name, machine, preferences, and context.",
+    "limit": 2000
+  }' | jq -r '.id')
+
+# 3. Create the agent (without inline blocks)
+AGENT_ID=$(curl -s -X POST http://localhost:8283/v1/agents/ \
+  -H "Authorization: Bearer $LETTA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "data-agent",
+    "model": "OpenRouter/z-ai/glm-4.5-air:free",
+    "description": "AI assistant for data analysis tasks"
+  }' | jq -r '.id')
+
+# 4. Attach persona block
+curl -s -X PATCH "http://localhost:8283/v1/agents/$AGENT_ID/core-memory/blocks/attach/$PERSONA_ID" \
+  -H "Authorization: Bearer $LETTA_API_KEY"
+
+# 5. Attach human block
+curl -s -X PATCH "http://localhost:8283/v1/agents/$AGENT_ID/core-memory/blocks/attach/$HUMAN_ID" \
+  -H "Authorization: Bearer $LETTA_API_KEY"
+
+echo "Created agent $AGENT_ID with persona and human blocks"
+```
+
+**Why separate blocks?**
+- Blocks can be reused across agents (shared memory)
+- Better audit trail
+- Easier updates
+- Enables shared memory patterns
+
+**See also:** `references/best-practices.md` for full details

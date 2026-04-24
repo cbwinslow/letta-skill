@@ -1,0 +1,138 @@
+# Block Templates for Letta Agents
+# Use these templates when creating memory blocks for agents
+# All blocks MUST include description field per best practices
+
+---
+# BLOCK TEMPLATES
+
+# 1. persona - Agent persona and behavioral guidelines
+persona:
+  label: "persona"
+  limit: 2000
+  read_only: false
+  description: "Agent persona: role, communication style, and behavioral guidelines. Defines how the agent should interact with users."
+
+# 2. human - User information
+human:
+  label: "human"
+  limit: 2000
+  read_only: false
+  description: "User information including name, preferences, machine, and communication context."
+
+# 3. project - Project context and goals
+project:
+  label: "project"
+  limit: 4000
+  read_only: false
+  description: "Current project context, goals, and working information. Contains project-specific facts and state."
+
+# 4. data_sources - Data sources and access
+data_sources:
+  label: "data_sources"
+  limit: 4000
+  read_only: false
+  description: "Data sources and their current status. Contains counts, locations, and access information."
+
+# 5. skills - Technical skills available
+skills:
+  label: "skills"
+  limit: 2000
+  read_only: false
+  description: "Technical skills available for this project. Languages, tools, databases, and frameworks."
+
+# 6. homelab - Homelab infrastructure (for homelab agents)
+homelab:
+  label: "homelab"
+  limit: 4000
+  read_only: false
+  description: "cbwdellr720 homelab infrastructure: servers, networking, DNS, services, monitoring stack. Contains IP addresses, hostnames, port configurations, and active containers."
+
+# 7. knowledge - Reference knowledgebase
+knowledge:
+  label: "knowledge"
+  limit: 8000
+  read_only: false
+  description: "Reference knowledgebase for systems, tools, and configurations. Contains factual information, URLs, credentials locations, and architectural decisions."
+
+# 8. runbook - Operational procedures
+runbook:
+  label: "runbook"
+  limit: 4000
+  read_only: false
+  description: "Operational procedures and troubleshooting guides for systems. Command references, error diagnostics, and step-by-step recovery procedures."
+
+# 9. scratchpad - Working memory
+scratchpad:
+  label: "scratchpad"
+  limit: 8000
+  read_only: false
+  description: "Working notes the agent may revise frequently. Current task state, in-progress work, and temporary references."
+
+# 10. policies - Read-only policies
+policies:
+  label: "policies"
+  limit: 2000
+  read_only: true
+  description: "Read-only compliance, guardrails, or organization rules. Agent cannot modify this block."
+
+# 11. project_context - Project-specific context (alternative to project)
+project_context:
+  label: "project_context"
+  limit: 4000
+  read_only: false
+  description: "Project context and goals. Contains current project scope, objectives, and working notes."
+
+# 12. conversation_history - Recent conversation context
+conversation_history:
+  label: "conversation_history"
+  limit: 4000
+  read_only: false
+  description: "Recent conversation context and key points. Updated after each significant interaction."
+
+---
+# AGENT TYPE PRESETS
+
+# Data Analysis Agent
+data_agent:
+  blocks:
+    - $persona
+    - $human
+    - $project
+    - $data_sources
+    - $skills
+
+# Homelab Agent
+homelab_agent:
+  blocks:
+    - $persona
+    - $human
+    - $homelab
+    - $knowledge
+    - $runbook
+
+# Research Agent
+research_agent:
+  blocks:
+    - $persona
+    - $human
+    - $project
+    - $notes
+    - $sources
+
+# Support Agent
+support_agent:
+  blocks:
+    - $persona
+    - $human
+    - $policies
+    - $knowledge
+    - $scratchpad
+
+---
+# EXAMPLE: Creating blocks from templates
+
+# Create persona block
+# $ cat templates/block-templates.yaml | yq '.persona'
+# label: persona
+# limit: 2000
+# description: Agent persona: role, communication style, and behavioral guidelines.
