@@ -135,7 +135,7 @@ curl -s -L -X PATCH http://localhost:8283/v1/identities/IDENTITY_ID/core-memory/
 ```bash
 # Auto-load Letta environment
 curl -s -L "http://localhost:8283/v1/identities/IDENTITY_ID/archival-memory?limit=10" \
-  -H "Authorization: Bearer $LETTA_API_KEY" | jq '.passages[] | {text, score}'
+  -H "Authorization: Bearer $LETTA_API_KEY" | jq '.[] | {id, text, created_at, tags}'
 ```
 
 ### Insert into identity-specific archival memory

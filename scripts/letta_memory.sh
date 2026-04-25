@@ -126,13 +126,33 @@ letta_memory_archival_search() {
   local agent_id="$1"
   local query="$2"
   local limit="${3:-10}"
-  
+
   if [ -z "$agent_id" ] || [ -z "$query" ]; then
     echo "Error: agent_id and query are required" >&2
     return 1
   fi
+
+  # URL-encode the query parameter
+  local encoded_query
+  encoded_query=$(python3 -c "import urllib.parse; print(urllib.parse.quote('''$query'''))" 2>/dev/null || echo "$query")
   
-  letta_get "agents/$agent_id/archival-memory/search?query=$query&limit=$limit" "" | letta_json '.passages[] | {text: .text, score: .score}'
+  # Make the request and capture response
+  local response
+  response=$(letta_get "agents/$agent_id/archival-memory/search?query=$encoded_query&limit=$limit" "") || {
+    echo "Error: Failed to query archival memory (API request failed)" >&2
+    return 1
+  }
+  
+  # Validate response structure: must have a .results array
+  if echo "$response" | jq -e '.results | type == "array"' >/dev/null 2>&1; then
+    # Emit each result as a separate JSON object (one per line)
+    # The '?': skip nulls, though array won't contain nulls normally
+    echo "$response" | jq -c '.results[]? | {id, content, timestamp, tags}'
+  else
+    echo "Error: Unexpected response format from archival search API" >&2
+    echo "Response: $response" >&2
+    return 1
+  fi
 }
 
 # Delete a passage from archival memory

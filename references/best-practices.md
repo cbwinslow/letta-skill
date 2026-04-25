@@ -49,6 +49,45 @@ description: Comprehensive Letta best practices based on official documentation 
 
 ---
 
+## 1.5 Memory Architecture: Three Distinct Systems
+
+Letta has **three separate memory systems** with different purposes and access patterns:
+
+### Core Memory (Blocks)
+- **What**: Permanent memory blocks always included in the agent's context window
+- **Access**: Automatically in every prompt — no search needed
+- **Edit tools**: `memory_replace`, `memory_insert`, `core_memory_append`
+- **Use for**: User identity, agent persona, project goals, current task state
+- **Size**: Limited per block (2000–8000 chars typical)
+
+### Archival Memory (Passages)
+- **What**: Long-term semantic searchable storage; individual items are "passages"
+- **Access**: NOT automatic — must be explicitly recalled via `archival_memory_search` tool or API
+- **Write**: `archival_memory_insert` tool or `POST /v1/agents/{id}/archival-memory` with `{"text": "..."}`
+- **Read**: `archival_memory_search` tool or `GET /v1/agents/{id}/archival-memory/search?query=...`
+- **Response format**: `{results: [{id, timestamp, content, tags}], count: N}`
+- **Use for**: Meeting notes, decisions, project milestones, summaries — facts you want to remember across all future conversations
+- **Size**: Unlimited, indexed for semantic retrieval
+
+### Conversation History
+- **What**: Past message transcripts (user/assistant/tool roles)
+- **Access**: Search via `conversation_search` tool — hybrid text + semantic search of message content
+- **Use for**: Recalling earlier dialogue turns, finding specific past statements
+- **Note**: Distinct from archival memory — covers only message stream, not stored facts
+
+#### Quick Comparison
+
+| Feature | Core Memory | Archival Memory | Conversation History |
+|---------|-------------|----------------|---------------------|
+| Always in context? | ✅ Yes | ❌ No | ❌ No |
+| Search mechanism | Direct read (always available) | Semantic search via `archival_memory_search` | Hybrid text+semantic via `conversation_search` |
+| Write via | `memory_replace/insert/append` tools | `archival_memory_insert` tool or POST API | Implicit (every message) |
+| Size limit | Per-block (2000–8000 chars) | Unlimited | Unlimited |
+| Primary use | Essential facts (user, persona, project) | Important events/decisions/summaries | Past dialogue turns |
+| Query pattern | Read directly by label | Query by meaning/semantics | Query by text + semantics |
+
+---
+
 ## 2. Memory Block Best Practices
 
 ### 2.1 The Description Field is CRITICAL
@@ -215,6 +254,115 @@ curl -s -X PATCH "http://localhost:8283/v1/agents/$AGENT_ID/core-memory/blocks/a
 | Shared across agents | Create block once, attach to multiple |
 | Working notes | Use scratchpad block |
 | Keep under limit | Monitor block sizes, archive old data |
+
+---
+
+## 13. Active Recall Pattern (How Agents Use Memory During Conversation)
+
+When a user asks a question, the agent should follow this decision tree to determine which memory system to query:
+
+```text
+User Query Arrives
+    |
+    v
+Is the answer in CURRENT CONTEXT? → Yes → Answer directly
+    |
+    No
+    |
+    v
+Is this about:                           No
+├─ Past message history? ────────────────┐
+│  (e.g., "What did you say earlier?")   │
+│      → Use conversation_search           │
+│                                         │
+├─ Stored fact/decision/event? ──────────┤
+│  (e.g., "What's my email?"             │
+│        "When did we decide X?")        │
+│      → Use archival_memory_search       │
+│                                         │
+└─ Need to modify memory?                │
+   (e.g., "Update my address to...") ────┘
+      → Use memory_replace/insert/rethink
+```
+
+### Step-by-step recall decision
+
+**Step 1: Check core memory first**
+Core memory blocks are always in context — just read them directly. No tool call needed.
+
+**Step 2: For past dialogue, use `conversation_search`**
+Tool: `conversation_search(query="...", roles=["assistant"], limit=5)`
+Use when:
+- User asks "What did you tell me earlier?"
+- Need to find a specific statement from earlier in conversation
+- Checking consistency with previous answers
+
+**Step 3: For stored facts, use `archival_memory_search`**
+Tool: `archival_memory_search(query="...", limit=5)`
+Use when:
+- User asks about remembered information (preferences, decisions, facts)
+- Fact could have been stored in a past conversation
+- Semantic similarity search needed (concepts not exact keywords)
+
+**Step 4: For current state/working notes, use core memory blocks**
+- `memory_insert` — append notes to scratchpad
+- `memory_replace` — update user pref
+- `memory_rethink` — consolidate/summarize
+
+### Example conversation flow
+
+```
+User: "What's my favorite programming language?"
+
+Agent (internal thinking):
+  Core memory → check 'human' block    ← found: "User enjoys Rust"
+  → Answer directly
+
+---
+
+User: "What did I ask you to build last week?"
+
+Agent (internal thinking):
+  conversation_search(query="project to build", roles=["user"], limit=3)
+  → Find message: "Build a homelab network monitoring tool"
+  → Answer with that context
+
+---
+
+User: "Where did we park the server in the data center?"
+
+Agent (internal thinking):
+  archival_memory_search(query="server rack location", limit=3)
+  → Find passage: "Rack 12, position 3U, labeled 'letta-prod'"
+  → Answer with that fact
+```
+
+### Tool attachment requirement
+
+**CRITICAL:** Agents must have the relevant tools attached to use them. When creating an agent, include at minimum:
+
+```bash
+# Create agent with search tools
+curl -s -X POST http://localhost:8283/v1/agents/ \
+  -H "Authorization: Bearer $LETTA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "my-agent",
+    "model": "OpenRouter/z-ai/glm-4.5-air:free",
+    "description": "Agent with full memory capabilities",
+    "tools": ["archival_memory_search", "conversation_search", "memory_edit"]
+  }'
+```
+
+To add tools to an existing agent:
+```bash
+curl -s -X POST http://localhost:8283/v1/agents/AGENT_ID/tools \
+  -H "Authorization: Bearer $LETTA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"tools": ["archival_memory_search", "conversation_search"]}'
+```
+
+Without proper tool attachment, agents cannot autonomously recall information. See `reference/tools.md` for full tool management guide.
 
 ---
 

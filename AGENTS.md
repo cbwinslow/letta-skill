@@ -339,15 +339,12 @@ curl -s -X POST http://localhost:8283/v1/agents/AGENT_ID/archival/memory/search 
 
 ```bash
 # Add to archival memory
-curl -s -X POST http://localhost:8283/v1/agents/AGENT_ID/archival/memory \
+curl -s -X POST http://localhost:8283/v1/agents/AGENT_ID/archival-memory \
   -H "Authorization: Bearer $LETTA_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "content": "Self-attention allows each position to attend to all positions in the sequence.",
-    "metadata": {
-      "source": "research_paper",
-      "date": "2024-04-19"
-    }
+    "text": "Self-attention allows each position to attend to all positions in the sequence.",
+    "tags": ["source:research_paper", "date:2024-04-19"]
   }' | jq .
 ```
 

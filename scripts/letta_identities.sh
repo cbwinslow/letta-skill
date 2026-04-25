@@ -152,7 +152,7 @@ letta_identities_get_archival_memory() {
     return 1
   fi
   
-  letta_get "identities/$identity_id/archival-memory?limit=$limit" "" | letta_json '.passages[] | {text: .text, score: .score}'
+   letta_get "identities/$identity_id/archival-memory?limit=$limit" "" | letta_json '.[] | {id: .id, text: .text, timestamp: .created_at, tags: .tags}'
 }
 
 # Insert into identity-specific archival memory
