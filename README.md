@@ -50,6 +50,7 @@ gh skill install cbwinslow/letta-skill letta --agent codex --scope user
 - **Model Picker**: Select and configure models from various providers (OpenRouter, OpenAI, Anthropic, Ollama, etc.)
 - **Secrets Manager**: Securely manage secrets using environment variables and external secret stores
 - **Tool Builder**: Create, list, attach, detach, update, and delete custom tools
+- **Workflow Runner**: High-level orchestration scripts for common operations (agent lifecycle, memory, conversations, system health, identity onboarding, backups)
 
 ## Quick Start
 
@@ -150,16 +151,18 @@ volumes:
 ## Documentation
 
 - **SKILL.md**: Main skill file with quick start and module overview
-- **references/agents.md**: Agent management detailed API
-- **references/memory.md**: Memory blocks and archival memory
-- **references/identities.md**: Identity management
-- **references/folders.md**: Folder/file and MemFS operations
-- **references/healthcheck.md**: Health checks and troubleshooting
-- **references/openrouter.md**: Model selection and configuration
-- **references/secrets.md**: Secret management best practices
-- **references/tools.md**: Custom tool creation and management
-- **references/scripts-guide.md**: Helper scripts documentation
-- **templates/**: Starter templates for agents and memory blocks
+- **AGENTS.md**: Comprehensive agent usage guide (lifecycle, memory, tools, deployment patterns)
+- **workflows/WORKFLOWS.md**: High-level workflow scripts reference (complete guide to orchestration scripts)
+- `references/agents.md`: Agent management detailed API
+- `references/memory.md`: Memory blocks and archival memory
+- `references/identities.md`: Identity management
+- `references/folders.md`: Folder/file and MemFS operations
+- `references/healthcheck.md`: Health checks and troubleshooting
+- `references/openrouter.md`: Model selection and configuration
+- `references/secrets.md`: Secret management best practices
+- `references/tools.md`: Custom tool creation and management
+- `references/scripts-guide.md`: Helper scripts documentation
+- `templates/`: Starter templates for agents and memory blocks
 
 ## Security
 

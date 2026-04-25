@@ -820,12 +820,13 @@ See `scripts/` directory for helper scripts:
 
 ### Reference Documentation
 
-Detailed reference documentation in `reference/`:
+Detailed reference documentation in `reference/` and `workflows/`:
 - `agents.md` - Agent management API
 - `memory.md` - Memory management API
 - `tools.md` - Tool management API
 - `healthcheck.md` - Health check procedures
 - `secrets.md` - Secret management
+- `workflows/WORKFLOWS.md` - High-level orchestration scripts for common operations
 
 ### Tutorials
 

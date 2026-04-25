@@ -43,17 +43,29 @@ metadata:
 ```
 letta-skill/
 ├── SKILL.md              # This file
-├── scripts/             # Bash helper functions
-├── references/          # API documentation
-├── templates/          # Starter templates
-│   ├── agent.yaml
-│   ├── memory-block.yaml
-│   └── create-agent.sh
-├── assets/             # Branding and manifests
-│   ├── logo.svg
-│   ├── banner.svg
-│   └── manifest.json
-└── LICENSE
+├── AGENTS.md             # Comprehensive agent usage guide
+├── README.md             # Human-facing overview and quick start
+├── scripts/              # Bash helper functions (sourced by agents)
+├── references/           # Detailed API documentation
+├── templates/            # Starter templates (agent, memory-block)
+├── workflows/            # High-level orchestration scripts
+│   ├── README.md
+│   ├── WORKFLOWS.md
+│   ├── agent/
+│   ├── memory/
+│   ├── conversation/
+│   ├── system/
+│   ├── identity/
+│   └── backup/
+├── assets/               # Branding (logo, banner, manifest)
+├── .env.example          # Environment configuration template
+├── .env                  # Local secrets (not committed)
+├── LICENSE
+├── CHANGELOG.md
+├── CONTRIBUTING.md
+├── DEPLOYMENT.md
+├── SECURITY.md
+└── .github/workflows/    # CI/CD pipelines
 ```
 
 Complete skill for managing self-hosted Letta server with PostgreSQL backend and configurable LLM providers (OpenRouter, OpenAI, Anthropic, Ollama, etc.).
@@ -150,6 +162,10 @@ Securely manage secrets for Letta agents using environment variables and externa
 Create, list, attach, detach, update, and delete custom tools on the Letta server. Build new agent capabilities by registering Python functions as tools.
 - **Reference**: `reference/tools.md`
 
+### Workflow Runner
+High-level orchestration scripts that combine multiple skill functions into complete, parameterized operations. Handle common patterns: agent lifecycle, memory operations, conversation management, system health, identity onboarding, and backups.
+- **Reference**: `workflows/WORKFLOWS.md`
+
 ## Key Rules
 
 - Always use the `/v1/` API prefix
@@ -178,7 +194,8 @@ All scripts in `scripts/` are prefixed with `letta_` and designed to be sourced:
 
 ## Detailed Documentation
 
-For complete API reference, examples, and troubleshooting guides, see the `reference/` directory:
+For complete API reference, examples, and troubleshooting guides, see the `reference/` directory and workflow docs:
+
 - `reference/agents.md` - Agent management detailed API
 - `reference/memory.md` - Memory blocks and archival memory
 - `reference/identities.md` - Identity management
@@ -187,3 +204,6 @@ For complete API reference, examples, and troubleshooting guides, see the `refer
 - `reference/openrouter.md` - Model selection and configuration
 - `reference/secrets.md` - Secret management best practices
 - `reference/tools.md` - Custom tool creation and management
+- `reference/scripts-guide.md` - Helper scripts documentation
+- `workflows/WORKFLOWS.md` - High-level workflow scripts reference (complete guide)
+- `templates/` - Starter templates for agents and memory blocks

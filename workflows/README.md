@@ -7,47 +7,26 @@ High-level orchestration scripts that combine multiple skill functions into comp
 ```
 workflows/
 ├── README.md              # This file
+├── WORKFLOWS.md           # Complete workflow reference (detailed)
 ├── agent/                 # Agent lifecycle workflows
 │   ├── setup.sh          # Create agent with blocks + tools + folder
 │   ├── info.sh           # Comprehensive agent status report
 │   ├── clone.sh          # Duplicate agent with memory
-│   ├── delete.sh         # Safe deletion with confirmation
-│   ├── bulk-create.sh    # Create multiple agents from YAML
-│   └── maintenance.sh    # Archive old messages, consolidate blocks
+│   └── delete.sh         # Safe deletion with confirmation
 ├── memory/               # Memory management workflows
 │   ├── save.sh           # Save to archival with auto-tagging
-│   ├── recall.sh         # Unified search (archival + conversation)
-│   ├── summarize.sh      # Generate archival summary of N recent messages
-│   ├── consolidate.sh    # Compress old block content
-│   └── export.sh         # Export all agent memories to JSON
+│   └── recall.sh         # Unified search (archival + conversation)
 ├── conversation/         # Conversation management
 │   ├── start.sh          # Start new conversation thread
-│   ├── continue.sh       # Continue existing thread
-│   ├── list.sh           # List all conversations for agent
-│   ├── summary.sh        # Generate human-readable summary
-│   └── export.sh         # Export conversation to Markdown/JSON
+│   └── continue.sh       # Continue existing thread
 ├── system/               # System operations
 │   ├── health.sh         # Full health check (server + DB + LLM)
-│   ├── status.sh         # System status dashboard
-│   ├── usage.sh          # Token/memory usage report
-│   ├── cleanup.sh        # Cleanup old/archived data
-│   └── rotate-keys.sh    # Rotate API keys (secure)
+│   └── usage.sh          # Token/memory usage report
 ├── identity/             # Multi-user identity management
-│   ├── onboard.sh        # Create identity + agent + initial memory
-│   ├── transfer.sh       # Transfer identity between agents
-│   ├── list.sh           # List all identities with stats
-│   └── merge.sh          # Merge duplicate identities
-├── backup/               # Backup and recovery
-│   ├── agent.sh          # Backup single agent (blocks + messages + archival)
-│   ├── all.sh            # Backup all agents
-│   ├── restore.sh        # Restore agent from backup
-│   ├── migrate.sh        # Migrate agent between servers
-│   └── verify.sh         # Verify backup integrity
-└── developer/            # Developer utilities
-    ├── init.sh           # Initialize skill in new environment
-    ├── test.sh           # Run full test suite + API tests
-    ├── generate-docs.sh  # Generate reference docs from templates
-    └── debug-agent.sh    # Full agent debugging dump
+│   └── onboard.sh        # Create identity + optional agent + memory
+└── backup/               # Backup and recovery
+    ├── agent.sh          # Backup single agent (blocks + messages + archival)
+    └── restore.sh        # Restore agent from backup
 ```
 
 ## Usage Pattern
