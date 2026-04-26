@@ -55,7 +55,8 @@ Secrets are injected into the Letta container at startup and accessed by tools v
 
 #### Example: OpenRouter API key in .env file
 ```env
-LETTA_POSTGRES_URI=postgresql://${POSTGRES_USER:-letta}:${POSTGRES_PASSWORD}@${POSTGRES_DOCKER_HOST:-host.docker.internal}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-letta}
+# PostgreSQL host: use localhost for bare-metal, host.docker.internal for Docker
+LETTA_POSTGRES_URI=postgresql://${POSTGRES_USER:-letta}:${POSTGRES_PASSWORD}@${POSTGRES_DOCKER_HOST:-localhost}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-letta}
 OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
 OPENAI_API_BASE=https://openrouter.ai/api/v1
 ```
