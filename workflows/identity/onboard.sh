@@ -105,6 +105,18 @@ INITIAL_MEMORY="User $NAME (identifier: $IDENTIFIER) onboarded on $(date -Isecon
 if [ -n "$AGENT_ID" ]; then
   INITIAL_MEMORY="$INITIAL_MEMORY Agent $AGENT_ID created and linked."
 fi
+# Build tags as space-separated list for CLI
+MEMORY_TAGS="type:onboarding date:$(date +%Y-%m-%d)"
+if [ -n "$AGENT_ID" ]; then
+  MEMORY_TAGS="$MEMORY_TAGS agent:$AGENT_ID"
+fi
+
+if [ -n "$AGENT_ID" ]; then
+  "$LETTA" archival insert "$AGENT_ID" "$INITIAL_MEMORY" $MEMORY_TAGS >/dev/null 2>&1 || echo "Warning: Failed to store initial memory" >&2
+else
+  # Store to identity archival if agent not created (not implemented in CLI; skip)
+  echo ":: No agent created; skipping memory storage" >&2
+fi
 MEMORY_TAGS='["type:onboarding","date:'$(date +%Y-%m-%d)'"'"$(if [ -n "$AGENT_ID" ]; then echo ',"agent:'"$AGENT_ID"'"'; fi)"']'
 
 if [ -n "$AGENT_ID" ]; then
