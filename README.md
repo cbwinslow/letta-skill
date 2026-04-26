@@ -42,6 +42,16 @@ gh skill install cbwinslow/letta-skill letta --agent codex --scope user
 
 ## Features
 
+- **Project Linking**: Model GitHub repositories, commits, PRs, and other project artefacts as memory blocks and archival passages. Use consistent tagging (`project:<name>`, `type:git`, `git:commit`, `sha:<hash>`, etc.) to enable fast retrieval and automatic association with agents. Provides scripts for creating project blocks, attaching them to agents, and ingesting GitHub webhook events.
+- **Full‑Lifecycle Memory**: Core memory creation, archival insertion, tagging, auto‑tagging, attachment/detachment, update, delete, and search capabilities.
+- **Agent Management**: Create, list, update, retrieve, delete, and message agents.
+- **Identity Management**: Multi‑user support with user‑to‑agent mapping.
+- **Folder & MemFS**: Manage Letta folders, upload/download files, enable/backup/restore MemFS.
+- **Health & Secrets**: Comprehensive health checks, secret validation, and secure environment handling.
+- **Model Picker**: Choose models from OpenRouter, OpenAI, Anthropic, Ollama, or custom endpoints.
+- **Tool Builder**: Scaffold, register, attach, detach, and version custom tools.
+- **Workflow Runner**: High‑level orchestration scripts for common operations (agent lifecycle, memory, conversations, system health, identity onboarding, backups).
+
 - **Agent Manager**: Create, list, update, retrieve, and delete Letta agents
 - **Memory Manager**: Manage core memory blocks and archival memory (long-term searchable storage)
 - **Identity Manager**: Handle multi-user applications with user-to-agent mappings
