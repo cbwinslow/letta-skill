@@ -1,209 +1,109 @@
 ---
-# SKILL USAGE POLICY
-
-## Mandatory Usage Instructions
-All AI agents using this skill **MUST**:
-
-1. Always use the official Letta REST API endpoints
-2. Always record complete audit context for every operation. Try and include as much data as possible, such as:
-   - Agent name / ID
-   - Session ID
-   - Memory block ID
-   - Project / repository context
-   - Exact UTC timestamp
-   - Semantic tags
-   - Source file reference with line numbers
-   - GitHub issue / PR number when applicable
-   - Commit hash
-   - Origin URL / web reference when available
-   - Human-readable comment explaining purpose
-   - Full original memory payload
-   - Related / linked memory IDs
-3. **NEVER** create workaround scripts, direct database edits, or file based implementations
-4. **NEVER** bypass the established infra layer
-5. All operations must go through the documented skill entry points
-6. Any failures or errors are agent side issues - this infrastructure is validated and working
----
-
----
-name: letta
-description: Complete Letta infrastructure management including agent lifecycle, memory blocks, identities, folders/files (MemFS), health checks, model selection, secrets management, and custom tool building. Use this skill for any Letta server operation.
+name: letta-skill
+description: Manage Letta server infrastructure: create/delete agents, manage core and archival memory, identities, folders, tools, conversations, health checks, and backups. Uses the official Letta SDK via a unified CLI. Includes high-level workflow scripts for common tasks.
 license: Apache-2.0
-compatibility: Requires Letta server at http://localhost:8283, bash with curl/jq
+compatibility: Requires Python 3.12+, letta-client>=1.10.1, and a Letta server (http://localhost:8283). Works with bash, zsh, and fish.
+allowed-tools: bash jq curl python3
 metadata:
-  version: "1.0.0"
+  version: "1.0.1"
   author: "cbwinslow"
-  tags: ["letta", "agent", "memory", "infrastructure", "postgresql"]
+  tags: ["letta", "agent-management", "memory", "infrastructure", "sdk"]
 ---
 
-# Letta Infrastructure Management
+# Letta Infrastructure Management Skill
 
-## Directory Structure
+This skill provides a complete toolkit for managing a self-hosted Letta server. It wraps the official `letta-client` Python SDK in a convenient CLI (`letta`) and offers high-level workflow scripts for complex operations.
 
-```
-letta-skill/
-├── SKILL.md              # This file
-├── AGENTS.md             # Comprehensive agent usage guide
-├── README.md             # Human-facing overview and quick start
-├── scripts/              # Bash helper functions (sourced by agents)
-├── references/           # Detailed API documentation
-├── templates/            # Starter templates (agent, memory-block)
-├── workflows/            # High-level orchestration scripts
-│   ├── README.md
-│   ├── WORKFLOWS.md
-│   ├── agent/
-│   ├── memory/
-│   ├── conversation/
-│   ├── system/
-│   ├── identity/
-│   └── backup/
-├── assets/               # Branding (logo, banner, manifest)
-├── .env.example          # Environment configuration template
-├── .env                  # Local secrets (not committed)
-├── LICENSE
-├── CHANGELOG.md
-├── CONTRIBUTING.md
-├── DEPLOYMENT.md
-├── SECURITY.md
-└── .github/workflows/    # CI/CD pipelines
-```
+## Prerequisites
 
-Complete skill for managing self-hosted Letta server with PostgreSQL backend and configurable LLM providers (OpenRouter, OpenAI, Anthropic, Ollama, etc.).
+- Python 3.12 or newer with `letta-client` installed (`pip install letta-client`)
+- Letta server running (default: http://localhost:8283)
+- API key with appropriate permissions
 
-## Environment Setup
+## Setup
 
-### 1. Copy the example environment file
+1. Copy `.env.example` to `.env` and configure:
+   ```bash
+   LETTA_BASE_URL=http://localhost:8283
+   LETTA_API_KEY=your_api_key
+   LETTA_MODEL=OpenRouter/z-ai/glm-4.5-air:free
+   ```
+2. The `letta` CLI auto-loads this `.env` file.
+3. Verify with `./letta health`.
+
+## Quick Examples
+
 ```bash
-cp .env.example .env
+# List agents
+./letta agents list | jq .
+
+# Create an agent with custom memory blocks
+BLOCKS='[{"label":"persona","value":"You are a helpful assistant.","limit":2000},{"label":"human","value":"User context.","limit":2000}]'
+echo "$BLOCKS" | ./letta agents create "my-agent" "My description"
+
+# Send a message
+./letta agents message <agent_id> "Hello!"
+
+# Search archival memory
+./letta archival search <agent_id> "query"
+
+# Workflow: full agent setup (blocks + tools + optional folder)
+./workflows/agent/setup.sh --name "support-agent" --description "Customer support" --template support
 ```
 
-### 2. Edit .env with your actual values
-```bash
-# Required variables
-LETTA_BASE_URL=http://localhost:8283
-LETTA_API_KEY=${LETTA_API_KEY}
-OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+## CLI Reference
 
-# Optional: PostgreSQL for self-hosted deployments
-LETTA_POSTGRES_URI=postgresql://${POSTGRES_USER:-letta}:${POSTGRES_PASSWORD}@localhost:5432/${POSTGRES_DB:-letta}
-```
+The `letta` binary provides these commands:
 
-### 3. Load environment variables
-```bash
-# Auto-load Letta environment
-export LETTA_BASE_URL=${LETTA_BASE_URL:-http://localhost:8283}
-export LETTA_API_KEY=${LETTA_API_KEY:?LETTA_API_KEY is required. Copy .env.example to .env and set your key.}
-export LETTA_MODEL=${LETTA_MODEL:-OpenRouter/z-ai/glm-4.5-air:free}
-```
+- `agents` – list, get, create, delete, message, attach-tool, detach-tool, attach-folder, detach-folder
+- `messages` – list, search
+- `blocks` – list, get, create, update
+- `archival` – search, insert, list, delete
+- `tools` – list, list-agent, create, update, delete
+- `folders` – list (per agent)
+- `conversations` – start, continue
+- `identities` – create, link
+- `health` – server health check
 
-## Quick Start
+Run `./letta --help` for details.
 
-### Using Helper Scripts
-```bash
-# Source all helper functions
-source scripts/letta_client.sh
-source scripts/letta_agents.sh
-source scripts/letta_memory.sh
-source scripts/letta_identities.sh
-source scripts/letta_folders.sh
-source scripts/letta_tools.sh
-source scripts/letta_secrets.sh
+## Workflows
 
-# Or source all at once
-for f in scripts/letta_*.sh; do source "$f"; done
-```
+Higher-level orchestration scripts live in `workflows/`:
 
-### Common Operations
-```bash
-# List all agents
-letta_agents_list | jq .
+| Workflow | Purpose | Usage |
+|----------|---------|-------|
+| `agent/setup.sh` | Create agent with memory blocks and attach essential tools | `--name`, `--description`, `--template [minimal\|homelab\|research\|support\|data]`, `--folder` |
+| `agent/info.sh` | Display agent status (blocks, tools, messages) | `--agent-id`, `--format [json\|summary\|full]` |
+| `agent/clone.sh` | Clone an agent (blocks, tools, folders) | `--source-agent-id`, `--new-name` |
+| `agent/delete.sh` | Delete an agent with optional backup | `--agent-id`, `--confirm yes/`, `--backup true/false` |
+| `memory/save.sh` | Save a fact to archival memory | `--agent-id`, `--text`, `--tags`, `--autotag` |
+| `memory/recall.sh` | Unified search across archival and conversation | `--agent-id`, `--query`, `--limit`, `--source [archival\|conversation\|both]` |
+| `conversation/start.sh` | Start a new conversation thread | `--agent-id`, `--name`, `--first-message` |
+| `conversation/continue.sh` | Continue a conversation | `--conversation-id`, `--message` |
+| `system/health.sh` | Full health check (Letta, PostgreSQL, LLM) | `--detailed` |
+| `system/usage.sh` | Generate usage report (single or all agents) | `--agent-id`, `--days` |
+| `identity/onboard.sh` | Create identity and optionally an agent | `--identifier`, `--name`, `--create-agent true/false`, `--agent-template` |
+| `backup/agent.sh` | Backup all agent data to JSON | `--agent-id`, `--output` |
+| `backup/restore.sh` | Restore agent from backup | `--backup-file`, `--new-agent-id`, `--merge` |
 
-# Create agent with memory blocks
-AGENT_ID=$(letta_agents_create "my-agent" "Description" "OpenRouter/z-ai/glm-4.5-air:free")
+All workflows auto-source `.env` from the skill root.
 
-# Send message to agent
-letta_agents_message "$AGENT_ID" "Hello"
+## Architecture Notes
 
-# Health check
-letta_secrets_validate_all
-```
+- **SDK-based**: All API interactions go through the official `letta-client` Python package.
+- **Single entry point**: The `letta` CLI provides a consistent interface; workflows call it.
+- **Progressive disclosure**: Agents load this `SKILL.md` when needed; the full instructions are concise.
+- **Resources**: Additional reference documentation is in `references/` and code in `lib/`.
 
-## Skill Modules
+## Troubleshooting
 
-### Agent Manager
-Create, list, update, retrieve, and delete Letta agents. Manage agent lifecycle, creation with memory blocks and tools, sending messages, and searching message history.
-- **Reference**: `reference/agents.md`
+- `Error: Illegal header value 'Bearer '` – The `.env` file is missing or `LETTA_API_KEY` not set.
+- `404 Not Found` – Check `LETTA_BASE_URL` is correct and Letta server is running.
+- `422 Validation error` – Verify required fields; for agent creation, at least `persona` and `human` blocks are needed.
+- Tool not found – Use tool ID (UUID) or name as appropriate. CLI resolves names to IDs.
+- Streaming timeouts – Long conversations automatically include pings; if streaming hangs, the SDK handles it.
 
-### Memory Manager
-Create, read, update, attach, detach, and manage Letta memory blocks (core memory) and archival memory (long-term searchable storage). Manage shared blocks across agents.
-- **Reference**: `reference/memory.md`
+---
 
-### Identity Manager
-Manage Letta identities for multi-user applications. Handle user-to-agent mappings and user-specific memory contexts.
-- **Reference**: `reference/identities.md`
-
-### Folder & Archive Manager
-Create, list, update, delete, and manage Letta folders and files (MemFS). Handle folder creation, file upload/download, and Memory Filesystem operations.
-- **Reference**: `reference/folders.md`
-
-### Health Check
-Check Letta server health, PostgreSQL connectivity, OpenRouter availability, and overall system status. Use for troubleshooting and monitoring.
-- **Reference**: `reference/healthcheck.md`
-
-### OpenRouter Model Picker
-Select and configure OpenRouter models for Letta agents. Choose appropriate free or paid models, test model availability, and configure agent model settings.
-- **Reference**: `reference/openrouter.md`
-
-### Secrets Manager
-Securely manage secrets for Letta agents using environment variables and external secret stores. Handle API keys, database credentials, and other sensitive information without exposing them in memory blocks.
-- **Reference**: `reference/secrets.md`
-
-### Tool Builder
-Create, list, attach, detach, update, and delete custom tools on the Letta server. Build new agent capabilities by registering Python functions as tools.
-- **Reference**: `reference/tools.md`
-
-### Workflow Runner
-High-level orchestration scripts that combine multiple skill functions into complete, parameterized operations. Handle common patterns: agent lifecycle, memory operations, conversation management, system health, identity onboarding, and backups.
-- **Reference**: `workflows/WORKFLOWS.md`
-
-## Key Rules
-
-- Always use the `/v1/` API prefix
-- Never hardcode the LETTA_API_KEY in output or logs — reference as $LETTA_API_KEY
-- Use `letta_client.sh` helper functions when writing bash scripts
-- Use `host.docker.internal` not `localhost` for container connection strings
-- Blocks are created at `/v1/blocks/` then attached to agents — never assume inline creation
-- Attach/detach endpoints return null — do not assert on response body
-- Use `OpenRouter/` prefix (capital O) for all model handles with OpenRouter
-- When creating agents always include at minimum: persona and human memory blocks
-- Prefer the bash tool scripts in `scripts/` over raw curl for multi-step operations
-
-## Helper Scripts Reference
-
-All scripts in `scripts/` are prefixed with `letta_` and designed to be sourced:
-
-| Script | Functions |
-|--------|-----------|
-| `letta_client.sh` | `letta_api`, `letta_get`, `letta_post`, `letta_patch`, `letta_put`, `letta_delete`, `letta_json` |
-| `letta_agents.sh` | Agent lifecycle management functions |
-| `letta_memory.sh` | Core memory and archival memory functions |
-| `letta_identities.sh` | Identity and multi-user session functions |
-| `letta_folders.sh` | Folder/file and MemFS functions |
-| `letta_tools.sh` | Custom tool management functions |
-| `letta_secrets.sh` | Secret validation and health check functions |
-
-## Detailed Documentation
-
-For complete API reference, examples, and troubleshooting guides, see the `reference/` directory and workflow docs:
-
-- `reference/agents.md` - Agent management detailed API
-- `reference/memory.md` - Memory blocks and archival memory
-- `reference/identities.md` - Identity management
-- `reference/folders.md` - Folder/file and MemFS operations
-- `reference/healthcheck.md` - Health checks and troubleshooting
-- `reference/openrouter.md` - Model selection and configuration
-- `reference/secrets.md` - Secret management best practices
-- `reference/tools.md` - Custom tool creation and management
-- `reference/scripts-guide.md` - Helper scripts documentation
-- `workflows/WORKFLOWS.md` - High-level workflow scripts reference (complete guide)
-- `templates/` - Starter templates for agents and memory blocks
+For more detailed API documentation, see the `reference/` directory.

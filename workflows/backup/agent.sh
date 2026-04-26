@@ -27,7 +27,13 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILL_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-LETTA="$SKILL_DIR/letta"
+
+# Load env
+if [ -f "$SKILL_DIR/.env" ]; then
+  set -a
+  source "$SKILL_DIR/.env"
+  set +a
+fi
 
 if [ -z "$OUTPUT" ]; then
   TS=$(date +%Y-%m-%d_%H-%M-%S)
@@ -39,41 +45,48 @@ echo ":: Output file: $OUTPUT" >&2
 
 # --- Collect data ---
 echo ":: Fetching agent details..." >&2
-AGENT_DATA=$("$LETTA" agents get "$AGENT_ID")
+AGENT_DATA=$("$SKILL_DIR/letta" agents get "$AGENT_ID" 2>/dev/null || echo "{}")
 
 echo ":: Fetching memory blocks..." >&2
-BLOCKS_DATA=$("$LETTA" blocks list "$AGENT_ID")
+BLOCKS_DATA=$(echo "$AGENT_DATA" | jq '.memory_blocks // []')
 
 echo ":: Fetching messages..." >&2
-MESSAGES_DATA=$("$LETTA" messages list "$AGENT_ID" 1000)
+MESSAGES_DATA=$("$SKILL_DIR/letta" messages list "$AGENT_ID" 1000 2>/dev/null || echo "[]")
 
 echo ":: Fetching archival memory..." >&2
-ARCHIVAL_DATA=$("$LETTA" archival list "$AGENT_ID" 1000)
+ARCHIVAL_DATA=$("$SKILL_DIR/letta" archival list "$AGENT_ID" 1000 2>/dev/null || echo "[]")
 
 echo ":: Fetching tools..." >&2
-TOOLS_DATA=$("$LETTA" tools list-agent "$AGENT_ID")
+TOOLS_DATA=$("$SKILL_DIR/letta" tools list-agent "$AGENT_ID" 2>/dev/null || echo "[]")
 
 echo ":: Fetching folders..." >&2
-FOLDERS_DATA=$("$LETTA" folders list "$AGENT_ID")
+FOLDERS_DATA=$("$SKILL_DIR/letta" folders list "$AGENT_ID" 2>/dev/null || echo "[]")
 
 # --- Assemble backup ---
-cat <<EOF > "$OUTPUT"
-{
-  "metadata": {
-    "agent_id": "$AGENT_ID",
-    "agent_name": $(echo "$AGENT_DATA" | jq -r '.name // "unknown"' | jq -R .),
-    "backup_created": "$(date -Iseconds)",
-    "letta_version": "0.16.7",
-    "skills_version": "1.0.0"
-  },
-  "agent": $AGENT_DATA,
-  "memory_blocks": $BLOCKS_DATA,
-  "messages": $MESSAGES_DATA,
-  "archival_memory": $ARCHIVAL_DATA,
-  "tools": $TOOLS_DATA,
-  "folders": $FOLDERS_DATA
-}
-EOF
+jq -n \
+  --arg aid "$AGENT_ID" \
+  --argjson agent "$AGENT_DATA" \
+  --argjson blocks "$BLOCKS_DATA" \
+  --argjson messages "$MESSAGES_DATA" \
+  --argjson archival "$ARCHIVAL_DATA" \
+  --argjson tools "$TOOLS_DATA" \
+  --argjson folders "$FOLDERS_DATA" \
+  --arg ts "$(date -Iseconds)" \
+  '{
+    metadata: {
+      agent_id: $aid,
+      agent_name: ($agent.name // "unknown"),
+      backup_created: $ts,
+      letta_version: "0.16.7",
+      skills_version: "1.0.0"
+    },
+    agent: $agent,
+    memory_blocks: $blocks,
+    messages: $messages,
+    archival_memory: $archival,
+    tools: $tools,
+    folders: $folders
+  }' > "$OUTPUT"
 
 # Verify JSON
 if ! jq . "$OUTPUT" >/dev/null 2>&1; then
@@ -82,7 +95,7 @@ if ! jq . "$OUTPUT" >/dev/null 2>&1; then
 fi
 
 FILE_SIZE=$(du -h "$OUTPUT" | cut -f1)
-ENTRY_COUNT=$(jq '[.messages | length, .archival_memory | length, .memory_blocks | length] | add' "$OUTPUT")
+ENTRY_COUNT=$(jq '[.messages, .archival_memory, .memory_blocks] | map(length) | add' "$OUTPUT")
 
 cat <<EOF
 {

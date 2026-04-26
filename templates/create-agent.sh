@@ -4,9 +4,27 @@
 
 set -e
 
-# Load environment
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/../scripts/letta_client.sh"
+# Load environment - look for .env in current or parent directory
+if [[ -f ".env" ]]; then
+  set -a
+  source .env
+  set +a
+elif [[ -f "../.env" ]]; then
+  set -a
+  source ../.env
+  set +a
+fi
+
+# Also source centralized env if available
+if [[ -f "/home/cbwinslow/infra/letta/.env.letta" ]]; then
+  set -a
+  source /home/cbwinslow/infra/letta/.env.letta
+  set +a
+fi
+
+# Ensure required vars are set
+: "${LETTA_BASE_URL:?LETTA_BASE_URL must be set}"
+: "${LETTA_API_KEY:?LETTA_API_KEY must be set}"
 
 # Configuration
 AGENT_NAME="${1:-my-agent}"
