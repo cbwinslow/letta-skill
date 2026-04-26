@@ -91,18 +91,31 @@ info "Permissions set"
 # 5. Source helper scripts and run health check
 # --------------------------------------------------------------------------
 info "Loading helper scripts and validating server connectivity..."
-for f in "$SCRIPT_DIR/scripts/letta_"*.sh; do
-  # shellcheck disable=SC1090
-  source "$f"
-done
+
+# Source helper scripts from the actual tools location
+HELPER_DIR="/home/cbwinslow/infra/letta/tools"
+if [[ -d "$HELPER_DIR" ]]; then
+  for f in "$HELPER_DIR"/letta_*.sh; do
+    # shellcheck disable=SC1090
+    source "$f" 2>/dev/null || true
+  done
+  info "Loaded helper scripts from $HELPER_DIR"
+else
+  warn "Helper scripts directory not found: $HELPER_DIR"
+fi
 
 # Test connectivity
-if letta_secrets_validate_all; then
-  info "All checks passed — letta-skill is ready!"
-  echo ""
-  echo "  Run skills with:  ./run.sh <command> [args]"
-  echo "  List commands:    ./run.sh help"
+if command -v letta_secrets_validate_all &>/dev/null; then
+  if letta_secrets_validate_all; then
+    info "All checks passed — letta-skill is ready!"
+    echo ""
+    echo "  Run skills with:  ./run.sh <command> [args]"
+    echo "  List commands:    ./run.sh help"
+  else
+    warn "Some checks failed. Review the errors above."
+    warn "You can still use letta-skill but some features may not work."
+  fi
 else
-  warn "Some checks failed. Review the errors above."
-  warn "You can still use letta-skill but some features may not work."
+  warn "Helper functions not loaded - skipping connectivity tests"
+  warn "Run ./run.sh health after manually sourcing scripts"
 fi

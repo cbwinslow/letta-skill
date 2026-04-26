@@ -1,10 +1,11 @@
 ---
 name: letta-skill
-description: Complete Letta infrastructure management including agent lifecycle, memory blocks, identities, folders/files (MemFS), health checks, model selection, and custom tool building. Uses the official letta-client Python SDK via a unified CLI and provides high-level workflow scripts for common operations.
+description: Manage Letta server infrastructure: create/delete agents, manage core and archival memory, identities, folders, tools, conversations, health checks, and backups. Uses the official Letta SDK via a unified CLI. Includes high-level workflow scripts for common tasks.
 license: Apache-2.0
-compatibility: Requires Python 3.12+, letta-client>=1.10.1, and a Letta server (http://localhost:8283)
+compatibility: Requires Python 3.12+, letta-client>=1.10.1, and a Letta server (http://localhost:8283). Works with bash, zsh, and fish.
+allowed-tools: bash jq curl python3
 metadata:
-  version: "1.0.0"
+  version: "1.0.1"
   author: "cbwinslow"
   tags: ["letta", "agent-management", "memory", "infrastructure", "sdk"]
 ---
@@ -22,7 +23,7 @@ This skill provides a complete toolkit for managing a self-hosted Letta server. 
 ## Setup
 
 1. Copy `.env.example` to `.env` and configure:
-   ```
+   ```bash
    LETTA_BASE_URL=http://localhost:8283
    LETTA_API_KEY=your_api_key
    LETTA_MODEL=OpenRouter/z-ai/glm-4.5-air:free
@@ -86,13 +87,13 @@ Higher-level orchestration scripts live in `workflows/`:
 | `backup/agent.sh` | Backup all agent data to JSON | `--agent-id`, `--output` |
 | `backup/restore.sh` | Restore agent from backup | `--backup-file`, `--new-agent-id`, `--merge` |
 
-All workflows auto-source `.env` from the skill root and call the `letta` CLI.
+All workflows auto-source `.env` from the skill root.
 
 ## Architecture Notes
 
 - **SDK-based**: All API interactions go through the official `letta-client` Python package.
 - **Single entry point**: The `letta` CLI provides a consistent interface; workflows call it.
-- **Progressive disclosure**: Agents load this `SKILL.md` when needed; full instructions are concise.
+- **Progressive disclosure**: Agents load this `SKILL.md` when needed; the full instructions are concise.
 - **Resources**: Additional reference documentation is in `references/` and code in `lib/`.
 
 ## Troubleshooting
@@ -101,7 +102,7 @@ All workflows auto-source `.env` from the skill root and call the `letta` CLI.
 - `404 Not Found` – Check `LETTA_BASE_URL` is correct and Letta server is running.
 - `422 Validation error` – Verify required fields; for agent creation, at least `persona` and `human` blocks are needed.
 - Tool not found – Use tool ID (UUID) or name as appropriate. CLI resolves names to IDs.
-- Streaming timeouts – Long conversations automatically include pings; the SDK handles it. Increase timeout if needed.
+- Streaming timeouts – Long conversations automatically include pings; if streaming hangs, the SDK handles it.
 
 ---
 

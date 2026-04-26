@@ -2,7 +2,7 @@
 #
 # workflow: memory-recall
 # description: Unified memory recall: search both archival memory AND conversation history, return ranked results
-# usage: workflows/memory/recall.sh --agent-id AGENT_ID --query "search terms" [--limit 5] [--source archival|conversation|both]
+# usage: source .env && workflows/memory/recall.sh --agent-id AGENT_ID --query "search terms" [--limit 5] [--source archival|conversation|both]
 # returns: JSON with results from requested source(s), ranked by relevance
 #
 
@@ -31,23 +31,38 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILL_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-LETTA="$SKILL_DIR/letta"
+
+# Load env
+if [ -f "$SKILL_DIR/.env" ]; then
+  set -a
+  source "$SKILL_DIR/.env"
+  set +a
+fi
 
 RESULTS='{"archival": [], "conversation": []}'
 
 # --- Search archival memory ---
 if [ "$SOURCE" = "archival" ] || [ "$SOURCE" = "both" ]; then
   echo ":: Searching archival memory..." >&2
-  ARCHIVAL_JSON=$("$LETTA" archival search "$AGENT_ID" "$QUERY" "$LIMIT" 2>/dev/null || echo "[]")
-  ARCHIVAL_RESULTS=$(echo "$ARCHIVAL_JSON" | jq -s '{results: ., count: length}' 2>/dev/null || echo '{"results": [], "count": 0}')
+  ARCHIVAL_JSON=$("$SKILL_DIR/letta" archival search "$AGENT_ID" "$QUERY" "$LIMIT" 2>/dev/null || echo "[]")
+  # ARCHIVAL_JSON is already an array; use it directly
+  ARCHIVAL_RESULTS=$(echo "$ARCHIVAL_JSON" | jq '{results: ., count: length}' 2>/dev/null || echo '{"results": [], "count": 0}')
   RESULTS=$(echo "$RESULTS" | jq --argjson a "$ARCHIVAL_RESULTS" '.archival = $a.results')
 fi
 
 # --- Search conversation history ---
 if [ "$SOURCE" = "conversation" ] || [ "$SOURCE" = "both" ]; then
   echo ":: Searching conversation history..." >&2
-  CONVO_RAW=$("$LETTA" messages search "$AGENT_ID" "$QUERY" "$LIMIT" 2>/dev/null || echo "[]")
-  CONVO_RESULTS=$(echo "$CONVO_RAW" | jq '{results: [.[]? | {id: .id, role: .role, content: (.content // .text // ""), created_at: .created_at}], count: length}' 2>/dev/null || echo '{"results": [], "count": 0}')
+  CONVO_JSON=$("$SKILL_DIR/letta" messages search "$AGENT_ID" "$QUERY" "$LIMIT" 2>/dev/null || echo "[]")
+  CONVO_RESULTS=$(echo "$CONVO_JSON" | jq '{results: [.[]? | {id: .id, role: .role, content: (.content // .text // ""), created_at: .created_at}], count: length}' 2>/dev/null || echo '{"results": [], "count": 0}')
+  RESULTS=$(echo "$RESULTS" | jq --argjson c "$CONVO_RESULTS" '.conversation = $c.results')
+fi
+
+# --- Search conversation history ---
+if [ "$SOURCE" = "conversation" ] || [ "$SOURCE" = "both" ]; then
+  echo ":: Searching conversation history..." >&2
+  CONVO_JSON=$("$SKILL_DIR/letta" messages search "$AGENT_ID" "$QUERY" "$LIMIT" 2>/dev/null || echo "[]")
+  CONVO_RESULTS=$(echo "$CONVO_JSON" | jq '{results: [.[]? | {id: .id, role: .role, content: (.content // .text // ""), created_at: .created_at}], count: length}' 2>/dev/null || echo '{"results": [], "count": 0}')
   RESULTS=$(echo "$RESULTS" | jq --argjson c "$CONVO_RESULTS" '.conversation = $c.results')
 fi
 
@@ -56,4 +71,4 @@ TOTAL=$(echo "$RESULTS" | jq '[.archival[], .conversation[]] | length')
 echo ":: Found $TOTAL total matches" >&2
 
 # Return merged JSON
-echo "$RESULTS" | jq '{agent_id: "'$AGENT_ID'", query: "'$QUERY'", limit: '$LIMIT', source: "'$SOURCE'", results: .}'
+echo "$RESULTS" | jq --arg aid "$AGENT_ID" --arg q "$QUERY" --argjson lim "$LIMIT" --arg src "$SOURCE" '{agent_id: $aid, query: $q, limit: $lim, source: $src, results: .}'

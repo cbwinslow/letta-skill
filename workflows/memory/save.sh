@@ -2,7 +2,7 @@
 #
 # workflow: memory-save
 # description: Save a fact to archival memory with automatic tagging and audit metadata
-# usage: workflows/memory/save.sh --agent-id AGENT_ID --text "fact to store" [--tags "project:letta,type:note"] [--autotag]
+# usage: source .env && workflows/memory/save.sh --agent-id AGENT_ID --text "fact to store" [--tags "project:letta,type:note"] [--autotag]
 # returns: JSON with passage_id, timestamp, and stored text
 #
 
@@ -31,11 +31,17 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILL_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-LETTA="$SKILL_DIR/letta"
+
+# Load env
+if [ -f "$SKILL_DIR/.env" ]; then
+  set -a
+  source "$SKILL_DIR/.env"
+  set +a
+fi
 
 # --- Auto-tagging logic ---
 if $AUTOTAG; then
-  AGENT_NAME=$("$LETTA" agents get "$AGENT_ID" | jq -r '.name // "unknown"')
+  AGENT_NAME=$("$SKILL_DIR/letta" agents get "$AGENT_ID" 2>/dev/null | jq -r '.name // "unknown"')
   PROJECT_TAG="project:${AGENT_NAME//[^a-z0-9_-]/}"
   DATE_TAG="date:$(date +%Y-%m-%d)"
   TYPE_TAG="type:memory"
@@ -45,19 +51,20 @@ fi
 
 # --- Insert passage ---
 echo ":: Saving to archival memory..." >&2
-# Pass tags as separate arguments
-IFS=',' read -r -a TAG_ARR <<< "$TAGS"
-PASSAGE_ID=$("$LETTA" archival insert "$AGENT_ID" "$TEXT" "${TAG_ARR[@]}" 2>/dev/null) || {
+# Convert comma-separated tags to array
+IFS=',' read -ra TAG_ARRAY <<< "$TAGS"
+"$SKILL_DIR/letta" archival insert "$AGENT_ID" "$TEXT" "${TAG_ARRAY[@]}" 2>&1 | tee /tmp/passage_id.$$ || {
   echo "Error: Failed to insert archival memory" >&2
   exit 1
 }
+PASSAGE_ID=$(cat /tmp/passage_id.$$)
+rm -f /tmp/passage_id.$$
 
 if [ -z "$PASSAGE_ID" ]; then
-  echo "Error: Invalid response from API" >&2
+  echo "Error: No passage ID returned" >&2
   exit 1
 fi
 
-# Current timestamp
 TIMESTAMP=$(date -Iseconds)
 
 cat <<EOF

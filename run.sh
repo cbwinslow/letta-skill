@@ -5,64 +5,10 @@
 # Usage:
 #   ./run.sh <module> <command> [args...]
 #   ./run.sh help
-#
-# Examples:
-#   ./run.sh health
-#   ./run.sh agent list
-#   ./run.sh agent create "my-bot" "A helpful assistant"
-#   ./run.sh agent message <agent-id> "Hello!"
-#   ./run.sh agent messages <agent-id>
-#   ./run.sh memory list-blocks <agent-id>
-#   ./run.sh memory get <block-id>
-#   ./run.sh memory update <block-id> "new content"
-#   ./run.sh memory create <label> "content" [agent-id]
-#   ./run.sh memory attach <agent-id> <block-id>
-#   ./run.sh memory detach <agent-id> <block-id>
-#   ./run.sh memory delete <block-id>
-#   ./run.sh memory archival-insert <agent-id> "text"
-#   ./run.sh memory archival-search <agent-id> "query"
-#   ./run.sh memory archival-delete <agent-id> <passage-id>
-#   ./run.sh identity list
-#   ./run.sh identity create <name> <identity-type> [project]
-#   ./run.sh identity get <identity-id>
-#   ./run.sh identity update <identity-id> <name>
-#   ./run.sh identity delete <identity-id>
-#   ./run.sh identity attach-agent <identity-id> <agent-id>
-#   ./run.sh identity detach-agent <identity-id> <agent-id>
-#   ./run.sh identity agents <identity-id>
-#   ./run.sh identity memory <identity-id>
-#   ./run.sh identity archival <identity-id>
-#   ./run.sh identity message <identity-id> "message"
-#   ./run.sh folder list
-#   ./run.sh folder create <name>
-#   ./run.sh folder get <id>
-#   ./run.sh folder update <id> <new-name>
-#   ./run.sh folder delete <id>
-#   ./run.sh folder files <id>
-#   ./run.sh folder upload <folder-id> <file-path>
-#   ./run.sh folder download <folder-id> <file-id> [dest]
-#   ./run.sh folder delete-file <folder-id> <file-id>
-#   ./run.sh folder memfs-enable <agent-id>
-#   ./run.sh folder memfs-status <agent-id>
-#   ./run.sh folder memfs-backup <agent-id>
-#   ./run.sh folder memfs-restore <agent-id> <backup-file>
-#   ./run.sh tool list
-#   ./run.sh tool list-attached <agent-id>
-#   ./run.sh tool create <name> <desc> <source-code-file>
-#   ./run.sh tool get <tool-id>
-#   ./run.sh tool search <query>
-#   ./run.sh tool attach <agent-id> <tool-id>
-#   ./run.sh tool detach <agent-id> <tool-id>
-#   ./run.sh tool update <tool-id> <source-code-file>
-#   ./run.sh tool delete <tool-id>
-#   ./run.sh secret list
-#   ./run.sh secret check <VAR_NAME>
-#   ./run.sh secret validate-letta
-#   ./run.sh secret validate-openrouter
-#   ./run.sh secret validate-db
-#   ./run.sh secret validate-all
 # =============================================================================
 set -euo pipefail
+# DEBUG: uncomment to trace execution
+# set -x
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -88,16 +34,33 @@ else
   exit 1
 fi
 
+# Also source the centralized .env.letta if it exists (provides defaults)
+if [[ -f "/home/cbwinslow/infra/letta/.env.letta" ]]; then
+  set -a
+  # shellcheck disable=SC1091
+  source "/home/cbwinslow/infra/letta/.env.letta"
+  set +a
+fi
+
 # Validate minimum env
 : "${LETTA_BASE_URL:?LETTA_BASE_URL not set in .env}"
 : "${LETTA_API_KEY:?LETTA_API_KEY not set in .env}"
 
 # --------------------------------------------------------------------------
-# Source all helper scripts
+# Source all helper scripts from the actual tools location
 # --------------------------------------------------------------------------
-for f in "$SCRIPT_DIR/scripts/letta_"*.sh; do
-  # shellcheck disable=SC1090
-  source "$f"
+HELPER_DIR="/home/cbwinslow/infra/letta/tools"
+
+if [[ ! -d "$HELPER_DIR" ]]; then
+  error "Helper scripts directory not found: $HELPER_DIR"
+  exit 1
+fi
+
+for f in "$HELPER_DIR"/letta_*.sh; do
+  if [[ -f "$f" ]]; then
+    # shellcheck disable=SC1090
+    source "$f"
+  fi
 done
 
 # --------------------------------------------------------------------------

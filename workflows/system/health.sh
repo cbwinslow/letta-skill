@@ -2,7 +2,7 @@
 #
 # workflow: system-health
 # description: Comprehensive health check: Letta server, PostgreSQL, LLM providers, and agent status
-# usage: workflows/system/health.sh [--detailed]
+# usage: source .env && workflows/system/health.sh [--detailed]
 # returns: JSON with health status of all components
 #
 
@@ -20,10 +20,13 @@ done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILL_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-LETTA="$SKILL_DIR/letta"
 
-# Load .env for PostgreSQL URI and LLM keys
-source "$SKILL_DIR/.env" 2>/dev/null || true
+# Load env
+if [ -f "$SKILL_DIR/.env" ]; then
+  set -a
+  source "$SKILL_DIR/.env"
+  set +a
+fi
 
 echo ":: Running comprehensive health check..." >&2
 
@@ -31,10 +34,14 @@ echo ":: Running comprehensive health check..." >&2
 echo ":: Checking Letta server..." >&2
 LETTA_STATUS="unknown"
 LETTA_CODE=0
-LETTA_RESPONSE=$($LETTA health 2>/dev/null || echo "")
-if [ -n "$LETTA_RESPONSE" ]; then
-  LETTA_STATUS=$(echo "$LETTA_RESPONSE" | jq -r '.status // "unknown"' 2>/dev/null || echo "unknown")
-  # Extract code if present (unused)
+if command -v curl &>/dev/null; then
+  LETTA_RESPONSE=$(curl -s -w "\n%{http_code}" "${LETTA_BASE_URL}/v1/health/" \
+    -H "Authorization: Bearer $LETTA_API_KEY" 2>/dev/null || echo "")
+  if [ -n "$LETTA_RESPONSE" ]; then
+    LETTA_CODE=$(echo "$LETTA_RESPONSE" | tail -1)
+    LETTA_BODY=$(echo "$LETTA_RESPONSE" | sed '$d')
+    LETTA_STATUS=$(echo "$LETTA_BODY" | jq -r '.status // "unknown"' 2>/dev/null || echo "unknown")
+  fi
 fi
 
 # --- PostgreSQL connectivity ---
@@ -64,13 +71,21 @@ if [ -n "$OPENROUTER_API_KEY" ]; then
   OR_CHECK=$(curl -s -w "\n%{http_code}" "https://openrouter.ai/api/v1/auth/key" \
     -H "Authorization: Bearer $OPENROUTER_API_KEY" 2>/dev/null || echo "")
   OR_CODE=$(echo "$OR_CHECK" | tail -1)
-  OR_STATUS=$(if [ "$OR_CODE" = "200" ]; then echo "ok"; elif [ "$OR_CODE" = "401" ]; then echo "invalid_key"; else echo "error:$OR_CODE"; fi)
+  if [ "$OR_CODE" = "200" ]; then
+    OR_STATUS="ok"
+  elif [ "$OR_CODE" = "401" ]; then
+    OR_STATUS="invalid_key"
+  else
+    OR_STATUS="error:$OR_CODE"
+  fi
 fi
 
 # --- Agent count ---
 AGENT_COUNT=0
-AGENT_LIST=$($LETTA agents list 2>/dev/null || echo "[]")
-AGENT_COUNT=$(echo "$AGENT_LIST" | jq 'length')
+if [ -f "$SKILL_DIR/letta" ]; then
+  AGENT_LIST=$("$SKILL_DIR/letta" agents list 2>/dev/null || echo "[]")
+  AGENT_COUNT=$(echo "$AGENT_LIST" | jq 'length')
+fi
 
 # --- Overall status ---
 OVERALL="healthy"
@@ -83,7 +98,7 @@ cat <<EOF
   "timestamp": "$(date -Iseconds)",
   "overall_status": "$OVERALL",
   "letta_server": {
-    "url": "${LETTA_BASE_URL:-http://localhost:8283}",
+    "url": "$LETTA_BASE_URL",
     "status": "$LETTA_STATUS",
     "http_code": "$LETTA_CODE"
   },

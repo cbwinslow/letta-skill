@@ -2,10 +2,8 @@
 #
 # workflow: agent-setup
 # description: Create a fully configured Letta agent with memory blocks, tools, and optional folder attachment
-# usage: workflows/agent/setup.sh --name "agent-name" --description "..." [--model MODEL] [--template TEMPLATE] [--folder FOLDER]
-# returns: JSON output from letta CLI
-#
-# Auto-sources .env from skill root — no manual sourcing needed.
+# usage: source .env && workflows/agent/setup.sh --name "agent-name" --description "..." [--template homelab] [--folder "folder-name"]
+# returns: JSON with agent_id and configuration
 #
 
 set -e
@@ -15,7 +13,6 @@ DESCRIPTION=""
 MODEL="${LETTA_MODEL:-OpenRouter/z-ai/glm-4.5-air:free}"
 TEMPLATE="minimal"
 FOLDER=""
-CREATE_FOLDER=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -24,8 +21,7 @@ while [[ $# -gt 0 ]]; do
     --model) MODEL="$2"; shift 2 ;;
     --template) TEMPLATE="$2"; shift 2 ;;
     --folder) FOLDER="$2"; shift 2 ;;
-    --create-folder) CREATE_FOLDER=true; shift ;;
-    --help) echo "Usage: $0 --name NAME --description DESC [--model MODEL] [--template TEMPLATE] [--folder FOLDER] [--create-folder]"; exit 0 ;;
+    --help) echo "Usage: $0 --name NAME --description DESC [--model MODEL] [--template TEMPLATE] [--folder FOLDER]"; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 1 ;;
   esac
 done
@@ -35,12 +31,17 @@ if [ -z "$NAME" ] || [ -z "$DESCRIPTION" ]; then
   exit 1
 fi
 
-# Resolve skill directory (this script is in workflows/)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILL_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-LETTA="$SKILL_DIR/letta"
 
-# Build memory blocks from template (JSON string for letta CLI)
+# Load env (letta CLI does this automatically, but we need it for variables)
+if [ -f "$SKILL_DIR/.env" ]; then
+  set -a
+  source "$SKILL_DIR/.env"
+  set +a
+fi
+
+# --- Build memory blocks from template ---
 build_blocks() {
   local template="$1"
   case "$template" in
@@ -66,9 +67,10 @@ build_blocks() {
   esac
 }
 
+# --- Create agent ---
 echo ":: Creating agent: $NAME (template: $TEMPLATE)..." >&2
-BLOCKS_JSON=$(build_blocks "$TEMPLATE")
-AGENT_ID=$("$LETTA" agents create "$NAME" "$DESCRIPTION" "$MODEL" <<<"$BLOCKS_JSON")
+BLOCKS=$(build_blocks "$TEMPLATE")
+AGENT_ID=$(echo "$BLOCKS" | "$SKILL_DIR/letta" agents create "$NAME" "$DESCRIPTION" "$MODEL")
 
 if [ -z "$AGENT_ID" ] || [ "$AGENT_ID" = "null" ]; then
   echo "Error: Agent creation failed" >&2
@@ -77,41 +79,29 @@ fi
 
 echo ":: Agent created: $AGENT_ID" >&2
 
-# Attach essential tools
+# --- Attach essential tools ---
 echo ":: Attaching tools..." >&2
-for tool in archival_memory_search archival_memory_insert conversation_search memory_insert memory_replace core_memory_append; do
-  "$LETTA" agents attach-tool "$AGENT_ID" "$tool" 2>/dev/null || echo "Warning: failed to attach $tool" >&2
-done
+"$SKILL_DIR/letta" agents attach-tool "$AGENT_ID" "archival_memory_search" >/dev/null 2>&1 || true
+"$SKILL_DIR/letta" agents attach-tool "$AGENT_ID" "archival_memory_insert" >/dev/null 2>&1 || true
+"$SKILL_DIR/letta" agents attach-tool "$AGENT_ID" "conversation_search" >/dev/null 2>&1 || true
+"$SKILL_DIR/letta" agents attach-tool "$AGENT_ID" "memory_insert" >/dev/null 2>&1 || true
+"$SKILL_DIR/letta" agents attach-tool "$AGENT_ID" "memory_replace" >/dev/null 2>&1 || true
+"$SKILL_DIR/letta" agents attach-tool "$AGENT_ID" "core_memory_append" >/dev/null 2>&1 || true
+echo ":: Tools attached" >&2
 
-# Attach folder if specified
+# --- Attach folder if specified ---
 if [ -n "$FOLDER" ]; then
-  echo ":: Looking up or creating folder: $FOLDER" >&2
-  # Check if folder exists globally
-  FOLDER_ID=$(curl -s -L "${LETTA_BASE_URL}/v1/folders?name=${FOLDER}" \
-    -H "Authorization: Bearer $LETTA_API_KEY" 2>/dev/null | jq -r '.[0].id // empty')
-  
-  if [ -z "$FOLDER_ID" ] || [ "$FOLDER_ID" = "null" ]; then
-    if $CREATE_FOLDER; then
-      echo ":: Creating folder: $FOLDER" >&2
-      FOLDER_ID=$("$LETTA" folders create "$FOLDER" "Created by agent setup" 2>/dev/null | tail -1)
-      if [ -z "$FOLDER_ID" ] || [ "$FOLDER_ID" = "null" ]; then
-        echo "Warning: Failed to create folder '$FOLDER', skipping attachment" >&2
-        FOLDER_ID=""
-      else
-        echo ":: Folder created: $FOLDER_ID" >&2
-      fi
-    else
-      echo "Warning: Folder '$FOLDER' not found. Use --create-folder to create it automatically, or create it manually." >&2
-      FOLDER_ID=""
-    fi
-  fi
-
+  echo ":: Attaching folder: $FOLDER" >&2
+  FOLDER_ID=$("$SKILL_DIR/letta" folders list "$AGENT_ID" 2>/dev/null | jq -r ".[] | select(.name==\"$FOLDER\") | .id" | head -1)
   if [ -n "$FOLDER_ID" ] && [ "$FOLDER_ID" != "null" ]; then
-    "$LETTA" agents attach-folder "$AGENT_ID" "$FOLDER_ID" >/dev/null 2>&1 && echo ":: Folder attached: $FOLDER" >&2 || echo "Warning: Folder attachment may have failed" >&2
+    "$SKILL_DIR/letta" agents attach-folder "$AGENT_ID" "$FOLDER_ID" >/dev/null 2>&1 || true
+    echo ":: Folder attached: $FOLDER" >&2
+  else
+    echo "Warning: Folder '$FOLDER' not found, skipping" >&2
   fi
 fi
 
-# Output result
+# --- Return result ---
 cat <<EOF
 {
   "agent_id": "$AGENT_ID",
