@@ -46,8 +46,7 @@ PG_CODE=0
 if [ -n "$LETTA_POSTGRES_URI" ]; then
   if command -v psql &>/dev/null; then
     PG_CHECK=$(PGPASSWORD=$(echo "$LETTA_POSTGRES_URI" | sed 's/.*:\/\/\(.*\):\(.*\)@\(.*\):\(.*\)\/\(.*\)/\2/') \
-      psql "$LETTA_POSTGRES_URI" -c "SELECT 1;" 2>&1)
-    PG_CODE=$?
+      timeout 3 psql "$LETTA_POSTGRES_URI" -c "SELECT 1;" 2>&1) || PG_CODE=$?
     if [ $PG_CODE -eq 0 ]; then
       PG_STATUS="connected"
     else
