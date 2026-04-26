@@ -2,7 +2,7 @@
 #
 # workflow: backup-agent
 # description: Backup all data for an agent (blocks, messages, archival memory) to JSON file
-# usage: source .env && workflows/backup/agent.sh --agent-id AGENT_ID [--output "backup_AGENT_ID_2026-04-25.json"]
+# usage: workflows/backup/agent.sh --agent-id AGENT_ID [--output "backup_AGENT_ID_2026-04-25.json"]
 # returns: JSON with backup metadata and file path
 #
 
@@ -27,11 +27,7 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILL_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-
-source "$SKILL_DIR/.env" 2>/dev/null || true
-source "$SKILL_DIR/scripts/letta_client.sh"
-source "$SKILL_DIR/scripts/letta_agents.sh"
-source "$SKILL_DIR/scripts/letta_memory.sh"
+LETTA="$SKILL_DIR/letta"
 
 if [ -z "$OUTPUT" ]; then
   TS=$(date +%Y-%m-%d_%H-%M-%S)
@@ -43,32 +39,22 @@ echo ":: Output file: $OUTPUT" >&2
 
 # --- Collect data ---
 echo ":: Fetching agent details..." >&2
-AGENT_DATA=$(letta_agents_get "$AGENT_ID" 2>/dev/null || echo "{}")
+AGENT_DATA=$("$LETTA" agents get "$AGENT_ID")
 
 echo ":: Fetching memory blocks..." >&2
-BLOCKS_DATA=$(letta_get "agents/${AGENT_ID}/core-memory/blocks" "" 2>/dev/null || echo "[]")
+BLOCKS_DATA=$("$LETTA" blocks list "$AGENT_ID")
 
 echo ":: Fetching messages..." >&2
-MESSAGES_DATA=$(letta_agents_messages "$AGENT_ID" 1000 2>/dev/null || echo "[]")
+MESSAGES_DATA=$("$LETTA" messages list "$AGENT_ID" 1000)
 
 echo ":: Fetching archival memory..." >&2
-ARCHIVAL_DATA=$(letta_memory_archival_search "$AGENT_ID" "*" 1000 2>/dev/null || echo "[]")
-# If search returns empty due to wildcard not matching, try list
-if [ "$ARCHIVAL_DATA" = "[]" ]; then
-  ARCHIVAL_LIST=$(curl -s -L "${LETTA_BASE_URL}/v1/agents/${AGENT_ID}/archival-memory" \
-    -H "Authorization: Bearer $LETTA_API_KEY" 2>/dev/null || echo "[]")
-  if [ "$ARCHIVAL_LIST" != "[]" ]; then
-    ARCHIVAL_DATA=$(echo "$ARCHIVAL_LIST" | jq -c '.[] | {id, created_at, text, tags}' 2>/dev/null || echo "[]")
-  fi
-fi
+ARCHIVAL_DATA=$("$LETTA" archival list "$AGENT_ID" 1000)
 
 echo ":: Fetching tools..." >&2
-TOOLS_DATA=$(curl -s -L "${LETTA_BASE_URL}/v1/agents/${AGENT_ID}/tools" \
-  -H "Authorization: Bearer $LETTA_API_KEY" 2>/dev/null || echo "[]")
+TOOLS_DATA=$("$LETTA" tools list-agent "$AGENT_ID")
 
 echo ":: Fetching folders..." >&2
-FOLDERS_DATA=$(curl -s -L "${LETTA_BASE_URL}/v1/agents/${AGENT_ID}/folders" \
-  -H "Authorization: Bearer $LETTA_API_KEY" 2>/dev/null || echo "[]")
+FOLDERS_DATA=$("$LETTA" folders list "$AGENT_ID")
 
 # --- Assemble backup ---
 cat <<EOF > "$OUTPUT"
@@ -83,7 +69,7 @@ cat <<EOF > "$OUTPUT"
   "agent": $AGENT_DATA,
   "memory_blocks": $BLOCKS_DATA,
   "messages": $MESSAGES_DATA,
-  "archival_memory": $(if [ "$ARCHIVAL_DATA" = "[]" ]; then echo "[]"; else echo "$ARCHIVAL_DATA"; fi),
+  "archival_memory": $ARCHIVAL_DATA,
   "tools": $TOOLS_DATA,
   "folders": $FOLDERS_DATA
 }

@@ -2,7 +2,7 @@
 #
 # workflow: backup-restore
 # description: Restore an agent from a backup file created by backup/agent.sh
-# usage: source .env && workflows/restore/agent.sh --backup-file backup_AGENT_ID_2026-04-25.json [--new-agent-id NEW_ID] [--merge false]
+# usage: workflows/backup/restore.sh --backup-file backup_AGENT_ID_2026-04-25.json [--new-agent-id NEW_ID] [--merge false]
 # returns: JSON with restore status
 #
 
@@ -32,13 +32,9 @@ if [ ! -f "$BACKUP_FILE" ]; then
   exit 1
 fi
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pdir)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILL_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-
-source "$SKILL_DIR/.env" 2>/dev/null || true
-source "$SKILL_DIR/scripts/letta_client.sh"
-source "$SKILL_DIR/scripts/letta_agents.sh"
-source "$SKILL_DIR/scripts/letta_memory.sh"
+LETTA="$SKILL_DIR/letta"
 
 # --- Validate backup ---
 if ! jq . "$BACKUP_FILE" >/dev/null 2>&1; then
@@ -61,12 +57,10 @@ if [ -n "$NEW_AGENT_ID" ]; then
 fi
 
 # --- Check if target exists ---
-if $MERGE; then
+if [ "$MERGE" = "true" ]; then
   echo ":: Merge mode: will update existing agent" >&2
 else
-  # Check if agent exists and handle accordingly
-  EXISTING_CHECK=$(curl -s -L "${LETTA_BASE_URL}/v1/agents/${TARGET_ID}" \
-    -H "Authorization: Bearer $LETTA_API_KEY" 2>/dev/null || echo "{}")
+  EXISTING_CHECK=$("$LETTA" agents get "$TARGET_ID" 2>/dev/null || echo "{}")
   if echo "$EXISTING_CHECK" | jq -e 'select(.id != null)' >/dev/null 2>&1; then
     echo "Warning: Agent $TARGET_ID already exists. Use --merge true to merge, or specify different --new-agent-id" >&2
     exit 1
@@ -76,61 +70,40 @@ fi
 # --- Restore agent ---
 echo ":: Restoring agent configuration..." >&2
 
-if [ "$TARGET_ID" = "$ORIGINAL_ID" ] && [ "$MERGE" = false ]; then
+if [ "$TARGET_ID" = "$ORIGINAL_ID" ] && [ "$MERGE" != "true" ]; then
   # Create new agent with original config
   AGENT_NAME=$(jq -r '.agent.name' "$BACKUP_FILE")
   AGENT_DESC=$(jq -r '.agent.description // "Restored agent"' "$BACKUP_FILE")
-  AGENT_MODEL=$(jq -r '.agent.model // "'"$LETTA_MODEL"'"' "$BACKUP_FILE")
-
-  # Extract memory blocks
+  AGENT_MODEL=$(jq -r '.agent.model // "OpenRouter/z-ai/glm-4.5-air:free"' "$BACKUP_FILE")
   BLOCKS=$(jq -c '.memory_blocks[]' "$BACKUP_FILE" | jq -s '.' 2>/dev/null || echo "[]")
 
-  CREATE_DATA=$(jq -n \
-    --arg name "$AGENT_NAME" \
-    --arg desc "$AGENT_DESC" \
-    --arg model "$AGENT_MODEL" \
-    --argjson blocks "$BLOCKS" \
-    '{name: $name, description: $desc, model: $model, memory_blocks: $blocks}')
-
-  CREATE_RESP=$(curl -s -L -X POST "${LETTA_BASE_URL}/v1/agents/" \
-    -H "Authorization: Bearer $LETTA_API_KEY" \
-    -H "Content-Type: application/json" \
-    -d "$CREATE_DATA")
-
-  TARGET_ID=$(echo "$CREATE_RESP" | jq -r '.id // empty')
+  # Create via stdin blocks
+  TARGET_ID=$(echo "$BLOCKS" | "$LETTA" agents create "$AGENT_NAME" "$AGENT_DESC" "$AGENT_MODEL" 2>/dev/null)
   if [ -z "$TARGET_ID" ]; then
     echo "Error: Failed to create restored agent" >&2
     exit 1
   fi
-
   echo ":: Created agent: $TARGET_ID" >&2
 fi
 
 # --- Restore memory blocks (merge or replace) ---
 echo ":: Restoring memory blocks..." >&2
-BLOCK_COUNT=$(jq -r '.memory_blocks | length' "$BACKUP_FILE" 2>/dev/null || echo "0")
-echo ":: Found $BLOCK_COUNT blocks in backup" >&2
-
-# For each block, either update existing or create new
-# (This is a simplified version; full implementation would handle conflicts)
+# For restore, we skip block restoration as they are already created with agent; could update if needed.
 
 # --- Restore archival memory ---
 echo ":: Restoring archival memory..." >&2
-PASSAGE_COUNT=$(jq -r '.archival_memory | length' "$BACKUP_FILE" 2>/dev/null || echo "0")
-echo ":: Found $PASSAGE_COUNT passages in backup" >&2
-
 RESTORED_PASSAGES=0
-if [ "$PASSAGE_COUNT" -gt 0 ]; then
-  jq -c '.archival_memory[]' "$BACKUP_FILE" 2>/dev/null | while read -r PASSAGE; do
-    TEXT=$(echo "$PASSAGE" | jq -r '.text')
+jq -c '.archival_memory[]' "$BACKUP_FILE" 2>/dev/null | while read -r PASSAGE; do
+    TEXT=$(echo "$PASSAGE" | jq -r '.full_content // .content // ""')
     TAGS=$(echo "$PASSAGE" | jq -r '.tags // [] | join(",")')
     RESTORED_PASSAGES=$((RESTORED_PASSAGES + 1))
     # Insert (with error handling for duplicates)
-    letta_memory_archival_insert "$TARGET_ID" "$TEXT" "$TAGS" >/dev/null 2>&1 || true
-  done
-fi
+    "$LETTA" archival insert "$TARGET_ID" "$TEXT" $TAGS >/dev/null 2>&1 || true
+done
 
 # --- Summary ---
+BLOCK_COUNT=$(jq -r '.memory_blocks | length' "$BACKUP_FILE" 2>/dev/null || echo "0")
+
 cat <<EOF
 {
   "backup_file": "$BACKUP_FILE",

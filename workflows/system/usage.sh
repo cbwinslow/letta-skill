@@ -2,7 +2,7 @@
 #
 # workflow: system-usage
 # description: Generate usage report: agent message counts, memory block sizes, archival passage counts
-# usage: source .env && workflows/system/usage.sh [--agent-id AGENT_ID] [--days 7]
+# usage: workflows/system/usage.sh [--agent-id AGENT_ID] [--days 7]
 # returns: JSON with usage statistics
 #
 
@@ -22,26 +22,25 @@ done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILL_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-
-source "$SKILL_DIR/.env" 2>/dev/null || true
-source "$SKILL_DIR/scripts/letta_client.sh"
-source "$SKILL_DIR/scripts/letta_agents.sh"
+LETTA="$SKILL_DIR/letta"
 
 echo ":: Generating usage report..." >&2
 
 if [ -n "$AGENT_ID" ]; then
   # Single agent report
-  AGENT_INFO=$(letta_agents_get "$AGENT_ID" 2>/dev/null || echo "{}")
+  AGENT_INFO=$("$LETTA" agents get "$AGENT_ID")
   AGENT_NAME=$(echo "$AGENT_INFO" | jq -r '.name // "unknown"')
 
-  # Count messages
-  MSG_COUNT=$(letta_agents_messages "$AGENT_ID" 2>/dev/null | jq 'length' 2>/dev/null || echo 0)
+  # Count messages (fetch up to 1000)
+  MSGS_JSON=$("$LETTA" messages list "$AGENT_ID" 1000 2>/dev/null || echo "[]")
+  MSG_COUNT=$(echo "$MSGS_JSON" | jq 'length')
 
-  # Count archival passages (estimate via search)
-  PASSAGE_COUNT=$(letta_memory_archival_search "$AGENT_ID" "" 1 2>/dev/null | wc -l || echo "unknown")
+  # Count archival passages (fetch up to 1000)
+  PASSAGES_JSON=$("$LETTA" archival list "$AGENT_ID" 1000 2>/dev/null || echo "[]")
+  PASSAGE_COUNT=$(echo "$PASSAGES_JSON" | jq 'length')
 
-  # Block sizes
-  BLOCK_STATS=$(letta_agents_get "$AGENT_ID" 2>/dev/null | jq -r '.memory_blocks[]? | "\(.label): \(.value | length)/\(.limit)"' | paste -sd' | ' - 2>/dev/null || echo "unavailable")
+  # Block stats (sum of value lengths)
+  BLOCK_STATS=$(echo "$AGENT_INFO" | jq -r '[.memory_blocks[]?.value | length] | add // 0')
 
   cat <<EOF
 {
@@ -51,25 +50,26 @@ if [ -n "$AGENT_ID" ]; then
   },
   "period_days": $DAYS,
   "message_count": $MSG_COUNT,
-  "archival_passage_count": "$PASSAGE_COUNT",
-  "memory_blocks": "$BLOCK_STATS",
+  "archival_passage_count": $PASSAGE_COUNT,
+  "memory_block_char_total": $BLOCK_STATS,
   "generated_at": "$(date -Iseconds)"
 }
 EOF
 else
   # All agents report
-  AGENTS=$(letta_agents_list 2>/dev/null || echo "[]")
-  AGENT_COUNT=$(echo "$AGENTS" | jq 'length')
+  AGENTS_JSON=$("$LETTA" agents list)
+  AGENT_COUNT=$(echo "$AGENTS_JSON" | jq 'length')
 
   echo ":: Scanning $AGENT_COUNT agents..." >&2
 
   RESULTS="[]"
-  echo "$AGENTS" | jq -c '.[]' | while read -r AGENT; do
+  echo "$AGENTS_JSON" | jq -c '.[]' | while read -r AGENT; do
     AID=$(echo "$AGENT" | jq -r '.id')
     ANAME=$(echo "$AGENT" | jq -r '.name')
-    MSGS=$(letta_agents_messages "$AID" 2>/dev/null | jq 'length' 2>/dev/null || echo 0)
-    BLOCKS=$(letta_agents_get "$AID" 2>/dev/null | jq -r '[.memory_blocks[]?.value | length] | add // 0')
-    echo "{\"id\":\"$AID\",\"name\":\"$ANAME\",\"messages\":$MSGS,\"block_chars\":$BLOCKS}"
+    MSGS=$("$LETTA" messages list "$AID" 1000 2>/dev/null | jq 'length' 2>/dev/null || echo 0)
+    PASSAGES=$("$LETTA" archival list "$AID" 1000 2>/dev/null | jq 'length' 2>/dev/null || echo 0)
+    BLOCK_CHARS=$("$LETTA" agents get "$AID" 2>/dev/null | jq -r '[.memory_blocks[]?.value | length] | add // 0' 2>/dev/null || echo 0)
+    printf '{"id":"%s","name":"%s","messages":%s,"passages":%s,"block_chars":%s}\n' "$AID" "$ANAME" "$MSGS" "$PASSAGES" "$BLOCK_CHARS"
   done > /tmp/usage_results.$$.json
 
   RESULTS=$(jq -s '.' /tmp/usage_results.$$.json 2>/dev/null || echo "[]")

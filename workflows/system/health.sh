@@ -2,7 +2,7 @@
 #
 # workflow: system-health
 # description: Comprehensive health check: Letta server, PostgreSQL, LLM providers, and agent status
-# usage: source .env && workflows/system/health.sh [--detailed]
+# usage: workflows/system/health.sh [--detailed]
 # returns: JSON with health status of all components
 #
 
@@ -20,10 +20,10 @@ done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILL_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+LETTA="$SKILL_DIR/letta"
 
+# Load .env for PostgreSQL URI and LLM keys
 source "$SKILL_DIR/.env" 2>/dev/null || true
-source "$SKILL_DIR/scripts/letta_client.sh"
-source "$SKILL_DIR/scripts/letta_secrets.sh"
 
 echo ":: Running comprehensive health check..." >&2
 
@@ -31,12 +31,10 @@ echo ":: Running comprehensive health check..." >&2
 echo ":: Checking Letta server..." >&2
 LETTA_STATUS="unknown"
 LETTA_CODE=0
-LETTA_RESPONSE=$(curl -s -w "\n%{http_code}" "${LETTA_BASE_URL}/v1/health/" \
-  -H "Authorization: Bearer $LETTA_API_KEY" 2>/dev/null || echo "")
+LETTA_RESPONSE=$($LETTA health 2>/dev/null || echo "")
 if [ -n "$LETTA_RESPONSE" ]; then
-  LETTA_CODE=$(echo "$LETTA_RESPONSE" | tail -1)
-  LETTA_BODY=$(echo "$LETTA_RESPONSE" | sed '$d')
-  LETTA_STATUS=$(echo "$LETTA_BODY" | jq -r '.status // "unknown"' 2>/dev/null || echo "unknown")
+  LETTA_STATUS=$(echo "$LETTA_RESPONSE" | jq -r '.status // "unknown"' 2>/dev/null || echo "unknown")
+  # Extract code if present (unused)
 fi
 
 # --- PostgreSQL connectivity ---
@@ -61,20 +59,17 @@ fi
 
 # --- LLM provider health ---
 echo ":: Checking LLM providers..." >&2
-PROVIDERS='[]'
+OR_STATUS="not_configured"
 if [ -n "$OPENROUTER_API_KEY" ]; then
   OR_CHECK=$(curl -s -w "\n%{http_code}" "https://openrouter.ai/api/v1/auth/key" \
     -H "Authorization: Bearer $OPENROUTER_API_KEY" 2>/dev/null || echo "")
   OR_CODE=$(echo "$OR_CHECK" | tail -1)
   OR_STATUS=$(if [ "$OR_CODE" = "200" ]; then echo "ok"; elif [ "$OR_CODE" = "401" ]; then echo "invalid_key"; else echo "error:$OR_CODE"; fi)
-else
-  OR_STATUS="not_configured"
 fi
-# Add more providers as needed
 
 # --- Agent count ---
 AGENT_COUNT=0
-AGENT_LIST=$(letta_agents_list 2>/dev/null || echo "[]")
+AGENT_LIST=$($LETTA agents list 2>/dev/null || echo "[]")
 AGENT_COUNT=$(echo "$AGENT_LIST" | jq 'length')
 
 # --- Overall status ---
@@ -88,7 +83,7 @@ cat <<EOF
   "timestamp": "$(date -Iseconds)",
   "overall_status": "$OVERALL",
   "letta_server": {
-    "url": "$LETTA_BASE_URL",
+    "url": "${LETTA_BASE_URL:-http://localhost:8283}",
     "status": "$LETTA_STATUS",
     "http_code": "$LETTA_CODE"
   },

@@ -1,0 +1,17 @@
+#!/usr/bin/env python3
+"""
+Letta Skill — CLI entry point
+Provides simple commands for Letta operations using the SDK wrapper.
+"""
+
+import sys
+from pathlib import Path
+
+# Add lib to path so 'letta' package is importable
+SKILL_DIR = Path(__file__).parent
+sys.path.insert(0, str(SKILL_DIR / "lib"))
+
+from letta import main
+
+if __name__ == "__main__":
+    main()
