@@ -15,6 +15,7 @@ DESCRIPTION=""
 MODEL="${LETTA_MODEL:-OpenRouter/z-ai/glm-4.5-air:free}"
 TEMPLATE="minimal"
 FOLDER=""
+CREATE_FOLDER=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -23,7 +24,8 @@ while [[ $# -gt 0 ]]; do
     --model) MODEL="$2"; shift 2 ;;
     --template) TEMPLATE="$2"; shift 2 ;;
     --folder) FOLDER="$2"; shift 2 ;;
-    --help) echo "Usage: $0 --name NAME --description DESC [--model MODEL] [--template TEMPLATE] [--folder FOLDER]"; exit 0 ;;
+    --create-folder) CREATE_FOLDER=true; shift ;;
+    --help) echo "Usage: $0 --name NAME --description DESC [--model MODEL] [--template TEMPLATE] [--folder FOLDER] [--create-folder]"; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 1 ;;
   esac
 done
@@ -83,14 +85,29 @@ done
 
 # Attach folder if specified
 if [ -n "$FOLDER" ]; then
-  echo ":: Attaching folder: $FOLDER" >&2
-  FOLDER_ID=$("$LETTA" folders list 2>/dev/null | jq -r --arg name "$FOLDER" '.[] | select(.name == $name) | .id' | head -1)
-  if [ -n "$FOLDER_ID" ]; then
-    echo ":: Folder ID: $FOLDER_ID" >&2
-    # Folder attachment via SDK not yet implemented; skip with warning
-    echo "Warning: Folder attachment via CLI not yet implemented; skipping" >&2
-  else
-    echo "Warning: Folder '$FOLDER' not found, skipping" >&2
+  echo ":: Looking up or creating folder: $FOLDER" >&2
+  # Check if folder exists globally
+  FOLDER_ID=$(curl -s -L "${LETTA_BASE_URL}/v1/folders?name=${FOLDER}" \
+    -H "Authorization: Bearer $LETTA_API_KEY" 2>/dev/null | jq -r '.[0].id // empty')
+  
+  if [ -z "$FOLDER_ID" ] || [ "$FOLDER_ID" = "null" ]; then
+    if $CREATE_FOLDER; then
+      echo ":: Creating folder: $FOLDER" >&2
+      FOLDER_ID=$("$LETTA" folders create "$FOLDER" "Created by agent setup" 2>/dev/null | tail -1)
+      if [ -z "$FOLDER_ID" ] || [ "$FOLDER_ID" = "null" ]; then
+        echo "Warning: Failed to create folder '$FOLDER', skipping attachment" >&2
+        FOLDER_ID=""
+      else
+        echo ":: Folder created: $FOLDER_ID" >&2
+      fi
+    else
+      echo "Warning: Folder '$FOLDER' not found. Use --create-folder to create it automatically, or create it manually." >&2
+      FOLDER_ID=""
+    fi
+  fi
+
+  if [ -n "$FOLDER_ID" ] && [ "$FOLDER_ID" != "null" ]; then
+    "$LETTA" agents attach-folder "$AGENT_ID" "$FOLDER_ID" >/dev/null 2>&1 && echo ":: Folder attached: $FOLDER" >&2 || echo "Warning: Folder attachment may have failed" >&2
   fi
 fi
 
