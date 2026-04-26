@@ -234,6 +234,12 @@ def detach_folder(agent_id: str, folder_id: str) -> bool:
     return True
 
 
+def create_folder(name: str, description: str = "") -> str:
+    """Create a new folder (MemFS)."""
+    data = _request("POST", "/v1/folders", json={"name": name, "description": description})
+    return str(data.get("id"))
+
+
 # ─── Memory Blocks ─────────────────────────────────────────────────────────────
 
 def list_blocks(agent_id: str) -> List[Dict[str, Any]]:
@@ -401,7 +407,7 @@ def send_conversation_message(conversation_id: str, message: str) -> Dict[str, A
     headers = _get_headers()
     payload = {"messages": [{"role": "user", "content": message}], "stream": True}
     collected: List[Dict[str, Any]] = []
-    with httpx.stream("POST", url, headers=headers, json=payload, follow_redirects=True, timeout=60.0) as resp:
+    with httpx.stream("POST", url, headers=headers, json=payload, follow_redirects=True, timeout=120.0) as resp:
         resp.raise_for_status()
         for line in resp.iter_lines():
             line = line.strip()
@@ -436,13 +442,25 @@ def send_conversation_message(conversation_id: str, message: str) -> Dict[str, A
 # ─── Identities ────────────────────────────────────────────────────────────────
 
 def create_identity(identifier: str, name: str) -> str:
+    """Create an identity or return existing one if identifier already exists."""
     payload = {
         "identifier_key": identifier,
         "name": name,
         "identity_type": "user",
     }
-    data = _request("POST", "/v1/identities", json=payload)
-    return str(data.get("id"))
+    try:
+        data = _request("POST", "/v1/identities", json=payload)
+        return str(data.get("id"))
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 409:
+            # Identity already exists; list and find matching identifier
+            existing = _request("GET", "/v1/identities")
+            if isinstance(existing, list):
+                for ident in existing:
+                    if ident.get("identifier_key") == identifier:
+                        return str(ident.get("id"))
+            raise ValueError(f"Identity with identifier '{identifier}' exists but could not be retrieved")
+        raise
 
 
 def link_agent_to_identity(identity_id: str, agent_id: str) -> bool:
@@ -705,6 +723,11 @@ def main() -> None:
             sub = args[0]
             if sub == "list" and args[1:]:
                 json_output(list_agent_folders(args[1]))
+            elif sub == "create" and len(args) >= 2:
+                name = args[1]
+                desc = args[2] if len(args) > 2 else ""
+                folder_id = create_folder(name, desc)
+                print(folder_id)
             else:
                 raise ValueError(f"Unknown folders subcommand: {sub}")
 
